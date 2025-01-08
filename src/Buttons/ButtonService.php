@@ -24,7 +24,7 @@ final class ButtonService {
             ]);
     }
 
-    public static function getInlineKeyboardForSee(array $subscriptions): string
+    public static function getInlineKeyboardForCurrentChat(array $subscriptions): string
     {
         $buttons = [];
         foreach($subscriptions as $subscription) {

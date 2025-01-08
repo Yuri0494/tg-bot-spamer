@@ -10,7 +10,11 @@ use App\Entity\Subscription;
 
 class SubscriberSubscriptionRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
+    public function __construct(
+        private SubscriptionRepository $subscriptionRepository,
+        private SubscriberRepository $subscriberRepository,
+        ManagerRegistry $registry
+        )
     {
         parent::__construct($registry, SubscriberSubscription::class);
     }
@@ -67,5 +71,12 @@ class SubscriberSubscriptionRepository extends ServiceEntityRepository
         }
 
         return array_unique($result);
+    }
+
+    public function getSubscriptionsOfSubscriber(string $id)
+    {
+        $ss = $this->getSubscriptionIdsOfSubscriber($id);
+
+        return $this->subscriptionRepository->findBy(['id' => $ss]);
     }
 }

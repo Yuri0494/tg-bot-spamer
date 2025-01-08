@@ -83,7 +83,7 @@ class Server {
         if ($command === '/start') {
             $this->getAvailableSubscriptions();
         } elseif('/see' === $command) {
-            $this->sendContentForSee();
+            $this->sendContentForCurrentChat();
         } elseif(str_contains($command, '/see-')) {
             $this->subscriptionService->getCurrentSubscription($this->chat, $command);
         } else {
@@ -91,24 +91,18 @@ class Server {
         }
     }
 
-    private function handleMyChatMember()
-    {
-        $status = $this->request['new_chat_member']['status'] ?? ''; 
-
-        if (in_array($status, ['left', 'kicked'])) {
-            $this->chat = $this->chatRepository->createOrFind($this->request['chat']);
-            $this->subscriptionService->removeSubscriptions($this->chat);
-        }
-    }
-
     private function getAvailableSubscriptions()
     {
-        $availableSubscriptions = $this->subscriptionService->getSubscriptions($this->chat);
+        $availableSubscriptions = $this->subscriptionService->getAvailableSubscriptions($this->chat);
         $text = 'На что вы хотите подписаться?';
 
         if (!$availableSubscriptions) {
             $namesOfSubscriptions = $this->subscriptionService->getListOfSubscriptions($this->chat);
-            $text = 'На данный момент нет доступных подписок' .  PHP_EOL . 'Ваши подписки: ' . PHP_EOL . implode(PHP_EOL, $namesOfSubscriptions);
+            $text = 'На данный момент нет доступных подписок' .  
+                    PHP_EOL . 
+                    'Ваши подписки: ' . 
+                    PHP_EOL . 
+                    implode(PHP_EOL, $namesOfSubscriptions);
         }
 
         $this->tgBot->api->sendMessage(
@@ -128,15 +122,13 @@ class Server {
         );
     }
 
-    private function sendContentForSee()
+    private function sendContentForCurrentChat()
     {
-        $availableSubscriptions = $this->subscriptionService->getSubscriptionsOfCurrentChat($this->chat);
-        $text = empty($availableSubscriptions) ? 'Сейчас у вас нет подписок' : 'Что вы хотите посмотреть?';
-
+        $subscriptions = $this->subscriptionService->getSubscriptionsOfCurrentChat($this->chat);
         $this->tgBot->api->sendMessage(
             $this->chat->getChatId(), 
-            $text, 
-            ['reply_markup' => ButtonService::getInlineKeyboardForSee($availableSubscriptions)]
+            empty($subscriptions) ? 'Сейчас у вас нет подписок' : 'Что вы хотите посмотреть?', 
+            ['reply_markup' => ButtonService::getInlineKeyboardForCurrentChat($subscriptions)]
         );
     }
 
@@ -164,6 +156,16 @@ class Server {
         if(in_array($chatId, [-1001993053984, -1002337503652, -696758173]) && !in_array($userId, [788788415])) {
             $this->tgBot->api->sendMessage($chatId, "К сожалению, вам нельзя настраивать меня в данном чате :((");
             return true;
+        }
+    }
+
+    private function handleMyChatMember()
+    {
+        $status = $this->request['new_chat_member']['status'] ?? ''; 
+
+        if (in_array($status, ['left', 'kicked'])) {
+            $this->chat = $this->chatRepository->createOrFind($this->request['chat']);
+            $this->subscriptionService->removeSubscriptions($this->chat);
         }
     }
 }

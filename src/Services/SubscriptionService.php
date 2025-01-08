@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Api\TelegramApi\TelegramApi;
 use App\Entity\Subscriber;
 use App\Entity\Chat;
+use App\Entity\SubscriberSubscription;
 use App\Entity\Subscription;
 use App\TelegramBot\TelegramBot;
 use App\HttpApiAdapters\GuzzleHttpAdapter;
@@ -21,7 +22,6 @@ class SubscriptionService {
 
     const DONES_CHAT_ID = -1001993053984;
     const TEST_CHAT_ID = -1002337503652;
-    const SHARKS_CHAT_ID =  -696758173;
 
     public function __construct(
         private SketchService $skecthService,
@@ -45,16 +45,6 @@ class SubscriptionService {
 
         $this->em->beginTransaction();
         try {
-            // $this->bot->api->sendMessage($chatId, 'Доброе утро, благородные доны!');
-
-            // $sketches = [
-            //     // 'dulin' => $this->skecthService->getNextSketchLink('dulin', $saveChanges),
-            //     'taganrog' => $this->skecthService->getNextSketchLink('taganrog', $saveChanges),
-            //     'migrant' => $this->skecthService->getNextSketchLink('migrant', $saveChanges),
-            // ];
-
-            // $this->sendSketches($sketches, $chatId);
-
             $girls = $this->girlService->getGirlsInfo(3, $saveChanges);
             $this->sendGirlsPoll($chatId, $girls);
 
@@ -63,38 +53,6 @@ class SubscriptionService {
             $this->em->rollback();
             $this->logger->error($e->getMessage());
             $this->logErrorMessageToTg($e);
-        }
-    }
-
-    public function sendMessagesToSharks()
-    {
-        $this->em->beginTransaction();
-        try {
-            $this->bot->api->sendMessage(SubscriptionService::SHARKS_CHAT_ID, 'Доброе утро, насяльника!');
-
-            $sketches = [
-                'migrant' => $this->skecthService->getSketchLink('migrant', 55),
-            ];   
-
-            $this->sendSketches($sketches, SubscriptionService::SHARKS_CHAT_ID);
-
-            $this->em->commit();
-        } catch (Exception $e) {
-            $this->logger->error($e->getMessage());
-            $this->logErrorMessageToTg($e);
-            $this->em->rollback();
-        }
-    }
-
-    protected function sendSketches($sketches, $chatId)
-    {
-        foreach($sketches as $name => $link) {
-
-            if(!$link) {
-                $this->bot->api->sendMessage($chatId, 'К сожалению, видео не найдено' . '(' . $name. ')');
-            }
-
-            $this->bot->api->sendMessage($chatId, $link);
         }
     }
 
@@ -119,44 +77,93 @@ class SubscriptionService {
         }
     }
 
-    public function getSubscriptions(Chat $chat)
+    public function sendHello()
+    {
+        $subscriberIds = $this->ssRepository->getActiveSubscribersIds();
+
+        foreach($subscriberIds as $id) {
+            $this->bot->api->sendMessage($id, 'Привет! :)');
+        }
+    }
+
+    public function sendContentToSubscribers()
+    {
+        $allSubscriberSubscription = $this->ssRepository->findAll();
+
+        if (empty($allSubscriberSubscription)) {
+            return;
+        }
+
+        foreach($allSubscriberSubscription as $ss) {
+            $subscription = $this->subscriptionRepository->findOneBy(['id' => $ss->getSubscriptionId()]);
+            $this->sendSubscription($subscription, $ss, true);
+        }
+    }
+
+    public function getCurrentSubscription(Chat $chat, $code)
+    {
+        $ss = $this->ssRepository->findOneBy(['subscriber_id' => $chat->getChatId()]);
+        $subscription = $this->subscriptionRepository->findOneBy(['code' => str_replace('/see-', '/', $code)]);
+
+        if (empty($ss) || empty($subscription)) {
+            return;
+        }
+
+        $this->sendSubscription($subscription, $ss);
+    }
+
+    public function sendSubscription(Subscription $subscription, SubscriberSubscription $ss, $needSleep = false)
+    {
+        $sketchName = str_replace('/', '', $subscription->getCode());
+
+        if (!is_string($sketchName)) {
+            return;
+        }
+
+        $currentSeries = $ss->getLastWatchedSeries() + 1;
+        $link = $this->skecthService->getSketchLink($sketchName, $currentSeries);
+
+        if (!$link) {
+            $this->bot->api->sendMessage(
+                $ss->getSubscriberId(), 
+                "Я прислал вам все серии " . $subscription->getName() . "." . PHP_EOL . 'Вы можете попробовать подписаться на что-то еще. Для этого отправьте /start'
+            );
+            $this->ssRepository->delete($ss);
+            return;
+        }
+
+        $this->ssRepository->save($ss->setLastWatchedSeries($currentSeries));
+
+        $this->bot->api->sendMessage($ss->getSubscriberId(), $link);
+
+        if ($needSleep) {
+            sleep(10);
+        }
+    }
+
+    public function getAvailableSubscriptions(Chat $chat)
     {
         $subscriber = $this->subscriberRepository->findOrCreateSubscriber($chat->getChatId());
-        $subscriptions = $this->subscriptionRepository->findAll();
+        $allSubscriptions = $this->subscriptionRepository->findAll();
         $alredySubscribed = $this->ssRepository->getSubscriptionIdsOfSubscriber($subscriber->getSubscriberId());
-        $filteredSubscriptions = [];
+        $availableSubscriptions = [];
 
-        if(!empty($alredySubscribed)) {
-            foreach($subscriptions as $subscription) {
+        if (!empty($alredySubscribed)) {
+            foreach($allSubscriptions as $subscription) {
                 if(!in_array($subscription->getId(), $alredySubscribed)) {
-                    $filteredSubscriptions[] = $subscription;
+                    $availableSubscriptions[] = $subscription;
                 }
             }
 
-            return $filteredSubscriptions;
+            return $availableSubscriptions;
         }
 
-        return $subscriptions;
+        return $allSubscriptions;
     }
 
     public function getSubscriptionsOfCurrentChat(Chat $chat)
     {
-        $subscriber = $this->subscriberRepository->findOrCreateSubscriber($chat->getChatId());
-        $subscriptions = $this->subscriptionRepository->findAll();
-        $alredySubscribed = $this->ssRepository->getSubscriptionIdsOfSubscriber($subscriber->getSubscriberId());
-        $filteredSubscriptions = [];
-
-        if(empty($alredySubscribed)) {
-            return [];
-        }
-
-        foreach($subscriptions as $subscription) {
-            if(in_array($subscription->getId(), $alredySubscribed)) {
-                $filteredSubscriptions[] = $subscription;
-            }
-        }
-
-        return $filteredSubscriptions;
+        return $this->ssRepository->getSubscriptionsOfSubscriber($chat->getChatId());
     }
 
     public function subscribeTo(Chat $chat, string $command): string
@@ -179,56 +186,10 @@ class SubscriptionService {
     }
 
     public function getListOfSubscriptions(Chat $chat): array
-    {
-        $subscriber = $this->subscriberRepository->findOrCreateSubscriber($chat->getChatId());
-        $alredySubscribed = $this->ssRepository->getSubscriptionIdsOfSubscriber($subscriber->getSubscriberId());
-        $subscriptionNames = $this->subscriptionRepository->getSubscriptionsNames($alredySubscribed);
-       
-        return $subscriptionNames;
-    }
-
-    public function sendContentToSubscribers()
-    {
-        $ss = $this->ssRepository->findAll();
-
-        if (empty($ss)) {
-            return;
-        }
-
-        foreach($ss as $item) {
-            $subscription = $this->subscriptionRepository->findOneBy(['id' => $item->getSubscriptionId()]);
-            $sketchName = str_replace('/', '', $subscription->getCode());
-
-            if (!is_string($sketchName)) {
-                continue;
-            }
-
-            $currentSeries = $item->getLastWatchedSeries() + 1;
-            $link = $this->skecthService->getSketchLink($sketchName, $currentSeries);
-
-            if (!$link) {
-                $this->bot->api->sendMessage(
-                    $item->getSubscriberId(), 
-                    "Я прислал вам все серии " . $subscription->getName() . "." . PHP_EOL . 'Вы можете попробовать подписаться на что-то еще. Для этого отправьте /start'
-                );
-                $this->ssRepository->delete($item);
-                continue;
-            }
-
-            $this->ssRepository->save($item->setLastWatchedSeries($currentSeries));
-
-            $this->bot->api->sendMessage($item->getSubscriberId(), $link);
-            sleep(10);
-        }
-    }
-
-    public function sendHello()
-    {
-        $subscriberIds = $this->ssRepository->getActiveSubscribersIds();
-
-        foreach($subscriberIds as $id) {
-            $this->bot->api->sendMessage($id, 'Привет! :)');
-        }
+    {     
+        return $this->subscriptionRepository->getSubscriptionsNames(
+            $this->ssRepository->getSubscriptionIdsOfSubscriber($chat->getChatId())
+        );
     }
 
     public function removeSubscriptions(Chat $chat)
@@ -245,39 +206,6 @@ class SubscriptionService {
         $this->subscriptionRepository->create($sketchName, '/' . $code);
         $this->skecthService->publishSketchesToDb($array, $code);
     }
-
-    public function getCurrentSubscription(Chat $chat, $code)
-    {
-        $ss = $this->ssRepository->findOneBy(['subscriber_id' => $chat->getChatId()]);
-        $subscription = $this->subscriptionRepository->findOneBy(['code' => str_replace('/see-', '/', $code)]);
-
-        if (empty($ss) || empty($subscription)) {
-            return;
-        }
-
-        $sketchName = str_replace('/', '', $subscription->getCode());
-
-        if (!is_string($sketchName)) {
-            return;
-        }
-
-        $currentSeries = $ss->getLastWatchedSeries() + 1;
-        $link = $this->skecthService->getSketchLink($sketchName, $currentSeries);
-
-        if (!$link) {
-            $this->bot->api->sendMessage(
-                $chat->getChatId(), 
-                "Я прислал вам все серии " . $subscription->getName() . "." . PHP_EOL . 'Вы можете попробовать подписаться на что-то еще. Для этого отправьте /start'
-            );
-            $this->ssRepository->delete($ss);
-            return;
-        }
-
-        $this->ssRepository->save($ss->setLastWatchedSeries($currentSeries));
-
-        $this->bot->api->sendMessage($ss->getSubscriberId(), $link);
-    }
-
 
     public function getStandartPoll()
     {

@@ -14,23 +14,6 @@ class SketchService {
         private SketchesRepository $sr,
     ) {}
 
-    public function getNextSketchLink(string $sketchName, bool $withSetIsWatched = false): ?string
-    {
-        $sketch = $this->sr->findFirstUnwatched($sketchName);
-
-        if (!$sketch) {
-            return null;
-        }
-
-        if ($withSetIsWatched) {
-            $sketch->setIsWatched(true);
-            $this->em->persist($sketch);
-            $this->em->flush();
-        }
-
-        return $sketch->getLink();
-    }
-
     public function getSketchLink(string $sketchName, int $series_number, bool $withSetIsWatched = false): ?string
     {
         $sketch = $this->sr->findOneBy(['sketch_name' => $sketchName, 'series_number' => $series_number]);
