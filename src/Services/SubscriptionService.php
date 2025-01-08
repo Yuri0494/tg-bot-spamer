@@ -15,6 +15,7 @@ use App\Repository\SubscriberSubscriptionRepository;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Server\Server;
 use Exception;
 
 class SubscriptionService {
@@ -103,7 +104,7 @@ class SubscriptionService {
     public function getCurrentSubscription(Chat $chat, $code)
     {
         $ss = $this->ssRepository->findOneBy(['subscriber_id' => $chat->getChatId()]);
-        $subscription = $this->subscriptionRepository->findOneBy(['code' => str_replace('/see-', '/', $code)]);
+        $subscription = $this->subscriptionRepository->findOneBy(['code' => str_replace(Server::GET_THIS_COMMAND, '/', $code)]);
 
         if (empty($ss) || empty($subscription)) {
             return;

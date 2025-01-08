@@ -15,6 +15,10 @@ use App\Buttons\ButtonService;
 use App\Services\SubscriptionService;
 
 class Server {
+    const START_COMMAND = '/start';
+    const GET_COMMAND = '/get';
+    const GET_THIS_COMMAND = '/get-';
+
     private $tgBot;
     private $request;
     private $type;
@@ -59,7 +63,7 @@ class Server {
 
     private function handleMessageRequest()
     {
-        if ($this->request['text'] === '/start') {
+        if ($this->request['text'] === Server::START_COMMAND) {
             $this->chat = $this->chatRepository->createOrFind($this->request['chat']);
 
             if($this->isBlockedChanels()) {
@@ -80,11 +84,11 @@ class Server {
 
         $command = $this->request['data'];
 
-        if ($command === '/start') {
+        if ($command === Server::START_COMMAND) {
             $this->getAvailableSubscriptions();
-        } elseif('/see' === $command) {
-            $this->sendContentForCurrentChat();
-        } elseif(str_contains($command, '/see-')) {
+        } elseif(Server::GET_COMMAND === $command) {
+            $this->getSubscriptions();
+        } elseif(str_contains($command, Server::GET_THIS_COMMAND)) {
             $this->subscriptionService->getCurrentSubscription($this->chat, $command);
         } else {
             $this->subscribeTo($command);
@@ -122,7 +126,7 @@ class Server {
         );
     }
 
-    private function sendContentForCurrentChat()
+    private function getSubscriptions()
     {
         $subscriptions = $this->subscriptionService->getSubscriptionsOfCurrentChat($this->chat);
         $this->tgBot->api->sendMessage(
