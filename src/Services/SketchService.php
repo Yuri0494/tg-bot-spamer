@@ -31,6 +31,20 @@ class SketchService {
         return $sketch->getLink();
     }
 
+    public function getAllSketchesByName(string $sketchName): array
+    {
+        $sketches = $this->sr->findBy(
+            ['sketch_name' => $sketchName], 
+            ['series_number' => 'ASC']
+        );
+
+        if (!$sketches) {
+            return null;
+        }
+
+        return $sketches;
+    }
+
     public function setAllSketchesNonWatched(): void
     {
         $this->em->beginTransaction();

@@ -26,6 +26,9 @@ class User
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $user_name = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $last_command = null;
+
     public function getId(): int
     {
         return $this->id;
@@ -67,6 +70,18 @@ class User
         return $this;
     }
 
+    public function getLastCommand(): ?string
+    {
+        return $this->last_command;
+    }
+
+    public function setLastCommand(string $last_command): static
+    {
+        $this->last_command = $last_command;
+
+        return $this;
+    }
+
     public function getTgId(): int
     {
         return $this->tg_id;
@@ -86,6 +101,7 @@ class User
         $user->tg_id = $tg_id;
         $user->user_name = $user_name;
         $user->last_name = $last_name;
+        $user->last_command = null;
 
         return $user;
     }

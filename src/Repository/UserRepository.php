@@ -30,7 +30,7 @@ class UserRepository extends ServiceEntityRepository
         return $this->findOneBy(['tg_id' => $id]);
     }
 
-    public function findOrCreateUser($info): User
+    public function createOrFind($info): User
     {
         
         $user = $this->findByTgId($info['id']);
@@ -43,7 +43,8 @@ class UserRepository extends ServiceEntityRepository
             $info['id'], 
             $info['first_name'], 
             $info['username'] ?? null,
-            $info['last_name'] ?? null, 
+            $info['last_name'] ?? null,
+            $info['last_command'] ?? null,  
         );
 
         $this->save($user);

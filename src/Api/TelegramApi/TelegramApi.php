@@ -93,4 +93,19 @@ class TelegramApi {
             throw $e;
         }
     }
+
+    public function sendDeleteMessage($chatId, int $messageId) 
+    {
+        $body = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+        ];
+
+        try {
+            $this->client->sendGetRequest('deleteMessage', $body);
+        } catch (Exception $e) {
+            throw $e;
+        }
+    }
+
 }

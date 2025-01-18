@@ -26,7 +26,6 @@ class SendContentCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->subService->sendHello();
         $this->subService->sendContentToSubscribers();
         return Command::SUCCESS;
     }
