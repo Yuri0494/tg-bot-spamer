@@ -2,28 +2,19 @@
 
 namespace App\Services;
 
-use App\Api\TelegramApi\TelegramApi;
-use App\Buttons\Button;
-use App\Buttons\ButtonService;
-use App\Entity\Subscriber;
 use App\Entity\Chat;
 use App\Entity\SubscriberSubscription;
 use App\Entity\Subscription;
 use App\TelegramBot\TelegramBot;
-use App\HttpApiAdapters\GuzzleHttpAdapter;
 use App\Repository\SubscriberRepository;
 use App\Repository\SubscriptionRepository;
 use App\Repository\SubscriberSubscriptionRepository;
-use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use App\Server\Server;
 use Exception;
 
 class SubscriptionService {
-    private $bot;
-
-    const DONES_CHAT_ID = -1001993053984;
     const TEST_CHAT_ID = -1002337503652;
 
     public function __construct(
@@ -33,53 +24,11 @@ class SubscriptionService {
         private SubscriptionRepository $subscriptionRepository,
         private SubscriberSubscriptionRepository $ssRepository,
         private EntityManagerInterface $em,
+        private ContentServiceFabric $serviceFabric,
         private LoggerInterface $logger,
-    ) {
-        // TO DO Токен бота должен передаваться в параметрах к сервису
-        $this->bot = new TelegramBot(
-            new TelegramApi((new GuzzleHttpAdapter('https://api.telegram.org/bot6768896921:AAHSiWv6mmLSdd6b7kLVOIy9XXKltN8KIlg/')))
-        );
-    }
-
-    public function sendMessagesToDonesChat()
-    {
-        $chatId = SubscriptionService::DONES_CHAT_ID;
-        $saveChanges = true;
-
-        $this->em->beginTransaction();
-        try {
-            $girls = $this->girlService->getGirlsInfo(3, $saveChanges);
-            $this->sendGirlsPoll($chatId, $girls);
-
-            $this->em->commit();
-        } catch (Exception $e) {
-            $this->em->rollback();
-            $this->logger->error($e->getMessage());
-            $this->logErrorMessageToTg($e);
-        }
-    }
-
-    public function sendGirlsPoll($chatId, array $girls, $sleepTime = 30)
-    {
-        foreach($girls as $girl) {
-            $mediaGroup = [];
-            foreach($girl['img_links'] as $link) {
-                $mediaGroup[] = [
-                    'type' => 'photo',
-                    'media' => $link,
-                ];
-            }
-
-            if ($girl['personal_info']) {
-                $this->bot->api->sendMessage($chatId, $girl['personal_info']);
-            }
-
-            $this->bot->api->sendMediaGroup($chatId, json_encode($mediaGroup));
-            $this->bot->api->sendPoll($chatId, 'Как вам девочка?', $this->getStandartPoll());
-            sleep($sleepTime);
-        }
-    }
-
+        private TelegramBot $bot,
+    ) {}
+    
     public function sendHello($id, $message)
     {
         $this->bot->api->sendMessage($id, $message);
@@ -93,9 +42,9 @@ class SubscriptionService {
             return;
         }
 
-        $allSubscriberSubscription = $this->prepareDataForCommonSend($allSubscriberSubscription);
+        $toSend = $this->prepareDataForCommonSend($allSubscriberSubscription);
 
-        foreach($allSubscriberSubscription as $subscriberId => $subscriptions) {
+        foreach($toSend as $subscriberId => $subscriptions) {
             $this->sendHello($subscriberId, 'Привет! :)');
             foreach($subscriptions as $ss) {
                 $subscription = $this->subscriptionRepository->findOneBy(['id' => $ss->getSubscriptionId()]);
@@ -104,92 +53,68 @@ class SubscriptionService {
         }
     }
 
-    public function getCurrentSubscription(Chat $chat, $code): array|null
-    {
-        $subscription = $this->subscriptionRepository->findOneBy(['code' => str_replace(Server::GET_THIS_COMMAND, '/', $code)]);
-        $ss = $this->ssRepository->findOneBy(['subscriber_id' => $chat->getChatId(), 'subscription_id' => $subscription->getId()]);
-
-        if (empty($ss) || empty($subscription)) {
-            return null;
-        }
-
-        return [$subscription, $ss];
-    }
-
     public function sendSubscription(Subscription $subscription, SubscriberSubscription $ss, $needSleep = false)
     {
-        $number = $ss->getLastWatchedSeries() + 1;
         $category = $this->getSubscriptionCategory($subscription);
-
-        if ($category === 'girl') {
-            $this->sendGirlsPoll($ss->getSubscriberId(), $this->girlService->getGirlss($number));
-            $this->ssRepository->save($ss->setLastWatchedSeries($number + 2));
-            return;
+        $quantity = $category === 'poll' ? 3 : 1;
+        $sleepTime = $category === 'poll' ? 30 : 1;
+        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity, $sleepTime, false);
+    
+        if ($contentService->send($ss->getSubscriberId(), $ss->getLastWatchedSeries() + 1)) {
+            $ss->setLastWatchedSeries($ss->getLastWatchedSeries() + $quantity);
+            $this->ssRepository->save($ss);
+        } else {
+            $this->ssRepository->delete($ss);
         }
-
-        $link = $this->getSubscriptionLink($subscription->getCode(), $number);
-
-        if (!$link) {
-            $this->bot->api->sendMessage(
-                $ss->getSubscriberId(), 
-                "Я прислал вам все серии " . $subscription->getName() . "." . PHP_EOL . 'Вы можете попробовать подписаться на что-то еще. Для этого отправьте /start'
-            );
-            return $this->ssRepository->delete($ss);
-        }
-
-        $this->ssRepository->save($ss->setLastWatchedSeries($number));
-
-        $this->bot->api->sendMessage($ss->getSubscriberId(), $link);
 
         if ($needSleep) {
             sleep(10);
         }
     }
 
-    public function sendCurrent(Subscription $subscription, SubscriberSubscription $ss, int $number)
+    public function sendNext(Subscription $subscription, SubscriberSubscription $ss, $needSleep = false)
     {
+        $quantity = 1;
         $category = $this->getSubscriptionCategory($subscription);
-        if ($category === 'girl') {
-            return $this->sendGirlsPoll($ss->getSubscriberId(), $this->girlService->getGirlInfoById($number), 3);
+        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity);
+        $current = $ss->getLastWatchedSeries() + 1;
+    
+        if ($contentService->send($ss->getSubscriberId(), $ss->getLastWatchedSeries() + 1)) {
+            $ss->setLastWatchedSeries($current);
+            $this->ssRepository->save($ss);
+        } else {
+            $this->ssRepository->delete($ss);
         }
 
-        $link = $this->getSubscriptionLink($subscription->getCode(), $number);
-        if (!$link) {
-            return $this->bot->api->sendMessage(
-                $ss->getSubscriberId(),
-                "Ой, что-то пошло нет так"
-            );
+        if ($needSleep) {
+            sleep(10);
         }
-
-        $this->bot->api->sendMessage($ss->getSubscriberId(), $link, ['reply_markup' => ButtonService::getInlineKeyboardForCurrentSeries()]);
     }
 
-    public function sendNext(Subscription $subscription, SubscriberSubscription $ss)
+    public function sendPrevSubscription(Subscription $subscription, SubscriberSubscription $ss)
     {
-        $number = $ss->getLastWatchedSeries() + 1;
-
+        $quantity = 1;
         $category = $this->getSubscriptionCategory($subscription);
-        if ($category === 'girl') {
-            $this->sendGirlsPoll($ss->getSubscriberId(), $this->girlService->getGirlInfoById($number), 1);
-            $this->ssRepository->save($ss->setLastWatchedSeries($number));
-            $this->bot->api->sendMessage($ss->getSubscriberId(), 'Смотрим следующую? ;)', ['reply_markup' => ButtonService::getInlineKeyboardForNextGirls()]);
-            return;
+        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity);
+        $number = ($ss->getLastWatchedSeries() - $quantity) < 1 
+                    ? 1
+                    : $ss->getLastWatchedSeries() - $quantity;
+    
+        if ($contentService->send($ss->getSubscriberId(), $number)) {
+            $ss->setLastWatchedSeries($number);
+            $this->ssRepository->save($ss);
+        } else {
+            $this->ssRepository->delete($ss);
         }
+        sleep(2);
+    }
 
-        $link = $this->getSubscriptionLink($subscription->getCode(), $number);
-
-        if (!$link) {
-            $this->bot->api->sendMessage(
-                $ss->getSubscriberId(), 
-                "Я прислал вам все серии " . $subscription->getName() . "." . PHP_EOL . 'Вы можете попробовать подписаться на что-то еще. Для этого отправьте /start'
-            );
-
-            return $this->ssRepository->delete($ss);
-        }
-
-        $this->ssRepository->save($ss->setLastWatchedSeries($number));
-
-        $this->bot->api->sendMessage($ss->getSubscriberId(), $link, ['reply_markup' => ButtonService::getInlineKeyboardForNextSeries()]);
+    public function sendCurrent(Subscription $subscription, SubscriberSubscription $ss, int $number)
+    {
+        $quantity = 1;
+        $category = $this->getSubscriptionCategory($subscription);
+        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity);
+        $contentService->send($ss->getSubscriberId(), $number);
     }
 
     public function getAvailableSubscriptions(Chat $chat)
@@ -210,6 +135,18 @@ class SubscriptionService {
         }
 
         return $allSubscriptions;
+    }
+
+    public function getCurrentSubscription(Chat $chat, $code): array|null
+    {
+        $subscription = $this->subscriptionRepository->findOneBy(['code' => str_replace(Server::GET_THIS_COMMAND, '/', $code)]);
+        $ss = $this->ssRepository->findOneBy(['subscriber_id' => $chat->getChatId(), 'subscription_id' => $subscription->getId()]);
+
+        if (empty($ss) || empty($subscription)) {
+            return null;
+        }
+
+        return [$subscription, $ss];
     }
 
     public function getSubscriptionsOfCurrentChat(Chat $chat)
@@ -246,19 +183,9 @@ class SubscriptionService {
     public function getSubscriptionCount(Subscription $subscription)
     {
         $category = $this->getSubscriptionCategory($subscription);
-        
-        switch($category) {
-            case 'video':
-                $subscription = $this->skecthService->getSeriesCountOfSketch(
-                    $this->getSubscriptionNameByCode($subscription->getCode())
-                );
-                break;
-            case 'girl':
-                $subscription = $this->girlService->getCountOfGirls();
-                break;
-        }
+        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription);
 
-        return $subscription;
+        return $contentService->getCount();
     }
 
     public function removeSubscriptions(Chat $chat)
@@ -282,64 +209,10 @@ class SubscriptionService {
         return false;
     }
 
-    private function getSubscriptionLink($name, $number)
-    {
-        return $this->skecthService->getSketchLink(
-            $this->getSubscriptionNameByCode($name), 
-            $number
-        );
-    }
-
-    private function getSubscriptionNameByCode(string $code): string
-    {
-        return str_replace('/', '', $code);
-    }
-
     public function publishSketches($array, $sketchName, $code) 
     {
         $this->subscriptionRepository->create($sketchName, '/' . $code);
         $this->skecthService->publishSketchesToDb($array, $code);
-    }
-
-    public function getStandartPoll()
-    {
-        return json_encode([                
-            [
-                'text' => 1,
-            ],
-            [
-                'text' => 2,
-            ],
-            [
-                'text' => 3,
-            ],
-            [
-                'text' => 4,
-            ],
-            [
-                'text' => 5,
-            ],
-            [
-                'text' => 6,
-            ],
-            [
-                'text' => 7,
-            ],
-            [
-                'text' => 8,
-            ],
-            [
-                'text' => 9,
-            ],
-            [
-                'text' => 10,
-            ],
-        ]);
-    }
-
-    private function logErrorMessageToTg(Exception $e)
-    {
-        $this->bot->api->sendMessage(SubscriptionService::TEST_CHAT_ID, $e->getMessage());
     }
 
     private function prepareDataForCommonSend(array $ss): array
@@ -358,7 +231,7 @@ class SubscriptionService {
     {
         // ХАК! КОСТЫЛЬ! КОШМАР!
         return match ($subscription->getCode()) {
-            '/girl' => 'girl',
+            '/girl' => 'poll',
             default => 'video',
         };
     }

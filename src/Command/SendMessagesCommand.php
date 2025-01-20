@@ -26,7 +26,6 @@ class SendMessagesCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        // $this->subService->sendMessagesToDonesChat();
         return Command::SUCCESS;
     }
 }

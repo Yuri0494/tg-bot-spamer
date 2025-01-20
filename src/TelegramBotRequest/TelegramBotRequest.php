@@ -2,58 +2,86 @@
 
 namespace App\TelegramBotRequest;
 
-class TelegramBotRequest {
-    public $data;
-    public bool $isCallback;
-    public bool $isMessage;
-    public bool $isMyChatMember;
-    public string $typeOfRequest;
-    public string | null $text;
-    public string | null $command;
-    public $chatMemberStatus;
-    public $chatInstance;
-    public $chatId;
-    public $edited_message;
-    public $from_id;
+use App\Entity\User;
+use App\Entity\Chat;
+use App\Repository\UserRepository;
+use App\Repository\ChatRepository;
+use Exception;
 
-    public function __construct($request)
+class TelegramBotRequest {
+    public string $type;
+    private $request;
+    public User $user;
+    public Chat $chat;
+    public string $command;
+    public $messageId;
+
+    public function __construct(
+        private ChatRepository $chatRepository,
+        private UserRepository $userRepository,
+    )
     {
-        $this->data = $request;
-        $this->isCallback = array_key_exists('callback_query', $this->data);
-        $this->isMessage = array_key_exists('message', $this->data);
-        $this->isMyChatMember = array_key_exists('my_chat_member', $this->data);
-        $this->edited_message = array_key_exists('edited_message', $this->data);
-        $this->typeOfRequest = $this->getTypeOfRequest();
-        $this->text = $this->data[$this->typeOfRequest]['text'] ?? null;
-        $this->command = $this->data[$this->typeOfRequest]['data'] ?? null;
-        $this->chatMemberStatus = $this->data[$this->typeOfRequest]['new_chat_member']['status'] ?? null;
-        $this->chatInstance = $this->data[$this->typeOfRequest]['chat_instance'] ?? null;
-        $this->chatId = $this->data[$this->typeOfRequest]['chat']['id'] ?? null;
-        $this->from_id = $this->data[$this->typeOfRequest]['from']['id'] ?? null;
+        $this->request = json_decode(file_get_contents('php://input') ?? [], true);
+        $this->type = $this->getTypeOfRequest($this->request);
+        $this->user = $this->userRepository->createOrFind($this->request[$this->type]['from']);
+        $this->chat = $this->initChat();
     }
 
-    public function getTypeOfRequest()
+    public function getRequestData()
     {
-        if($this->isCallback) {
-            return $this->typeOfRequest = 'callback_query';
-        } elseif($this->isMessage) {
-            return $this->typeOfRequest = 'message';
-        } elseif($this->isMyChatMember) {
-            return $this->typeOfRequest = 'my_chat_member';
-        } elseif($this->edited_message) {
-            return $this->typeOfRequest = 'edited_message';
+        return $this->request[$this->type];
+    }
+
+    public function getCommand()
+    {
+        return $this->request[$this->type]['text'] ?? $this->request[$this->type]['data'];
+    }
+
+    public function getMessageId()
+    {
+        if ($this->type !== 'callback_query') {
+            throw new Exception('Сейчас метод недоступен');
+        }
+        
+        return $this->request[$this->type]['message']['message_id'];
+    }
+
+    private function getTypeOfRequest($request): string
+    {
+        $isMessage = $this->request['message'] ?? false;
+        $isCallback = $this->request['callback_query'] ?? false;
+        $isMyChatMember = $this->request['my_chat_member'] ?? false;
+        
+        if ($isMessage) {
+            return 'message';
+        } elseif($isCallback) {
+            return 'callback_query';
+        } elseif($isMyChatMember) {
+            return 'my_chat_member';
+        }
+
+        return 'not handled';
+    }
+
+    private function initChat()
+    {
+        switch ($this->type) {
+            case 'message';
+                return $this->chatRepository->createOrFind($this->request[$this->type]['chat']);
+            case 'callback_query';
+                return $this->chat = $this->chatRepository->createOrFind($this->request[$this->type]['message']['chat']);
         }
     }
 
-    public function getChatID() 
+    public function isBlockedRequest(): bool
     {
-        return match($this->typeOfRequest) {
-            'callback_query' => $this->data['callback_query']['message']['chat']['id'],
-            'message' => $this->data['message']['chat']['id'],
-            'my_chat_member' => $this->data['my_chat_member']['chat']['id'],
-            'edited_message' => $this->data['edited_message']['chat']['id'],
-            default => null
-        };
-    }
+        $chatId = $this->chat->getChatId();
+        $userId = $this->user->getTgId();
 
+        if (in_array($chatId, [-1001993053984, -1002337503652, -696758173]) && !in_array($userId, [788788415])) {
+            return true;
+        }
+
+        return false;
+    }
 }

@@ -48,6 +48,11 @@ class Subscription
         return $this;
     }
 
+    public function getCodeWithoutSlash()
+    {
+        return str_replace('/', '', $this->code);
+    }
+
     public static function create(string $name, string $code)
     {
         $subscription = new Subscription();

@@ -5,7 +5,6 @@ namespace App\Services;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Repository\GirlRepository;
 use App\Repository\GirlImagesRepository;
-use ContentSeriviceInterface;
 use Exception;
 
 class GirlService {
@@ -14,8 +13,7 @@ class GirlService {
         private EntityManagerInterface $em,
         private GirlRepository $gr,
         private GirlImagesRepository $gir,
-    ) {
-    }
+    ) {}
 
     public function getGirlsInfo(int $limit, bool $withSetIsWatched = false): array
     {
@@ -104,9 +102,9 @@ class GirlService {
         return $girlsInfo;
     }
 
-    public function getGirlss(int $id, bool $withSetIsWatched = false): array
+    public function getGirlss(int $id, int $limit): array
     {
-        $girls = $this->gr->getSomeGirlsFromId($id);
+        $girls = $this->gr->getSomeGirlsFromId($id, $limit);
         $girlsInfo = [];
 
         foreach($girls as $i => $girl) {
@@ -131,15 +129,6 @@ class GirlService {
                 'personal_info' => $pesonalInfo ?? '',
                 'img_links' => $links, 
             ];
-
-            if ($withSetIsWatched) {
-                $girl->setIsWatched(true);
-                $this->em->persist($girl);
-            }
-        }
-
-        if (!empty($result) && $withSetIsWatched) {
-            $this->em->flush();
         }
 
         return $girlsInfo;

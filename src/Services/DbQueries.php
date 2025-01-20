@@ -10,7 +10,6 @@ use App\Repository\SketchesRepository;
 use App\Repository\GirlRepository;
 use App\Repository\GirlImagesRepository;
 
-
 class DbQueries {
 
     public function __construct(
@@ -18,8 +17,7 @@ class DbQueries {
         private SketchesRepository $sr,
         private GirlRepository $gr,
         private GirlImagesRepository $gir,
-    ) {
-    }
+    ) {}
 
     public function createGirl($data)
     {

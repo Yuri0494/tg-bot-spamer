@@ -22,3 +22,14 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    App\HttpApiAdapters\GuzzleHttpAdapter:
+        arguments:
+            $base_url: 'https://api.telegram.org/bot6768896921:AAHSiWv6mmLSdd6b7kLVOIy9XXKltN8KIlg/t'
+    App\Api\TelegramApi\TelegramApi:
+        arguments:
+            $client: '@App\HttpApiAdapters\GuzzleHttpAdapter'
+    App\TelegramBot\TelegramBot:
+        arguments:
+            $clientApi: '@App\Api\TelegramApi\TelegramApi'
+

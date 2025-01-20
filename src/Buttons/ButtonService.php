@@ -34,7 +34,7 @@ final class ButtonService {
             $buttons[][] = Button::create($subscription->getName(), $code)->toArray();
         }
 
-        $buttons[][] = Button::create('В начало', Server::START_COMMAND)->toArray();
+        $buttons[][] = Button::create('В начало 🔙', Server::START_COMMAND)->toArray();
 
         return json_encode([
                 'inline_keyboard' => $buttons
@@ -46,7 +46,7 @@ final class ButtonService {
         return json_encode([
             'inline_keyboard' => [
                 [
-                    Button::create('Смотреть далее ⏩', Server::GET_NEXT)->toArray(),
+                    Button::create('Смотреть ▶️', Server::GET_NEXT)->toArray(),
                 ],
                 [
                     Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
@@ -55,7 +55,7 @@ final class ButtonService {
                     Button::create('Отписаться ❌', Server::UNSUBSCRIBE)->toArray(),
                 ],
                 [
-                    Button::create('В начало', Server::START_COMMAND)->toArray(),
+                    Button::create('В начало 🔙', Server::START_COMMAND)->toArray(),
                 ],
             ]
         ]);
@@ -69,24 +69,32 @@ final class ButtonService {
                     Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
                 ],
                 [
-                    Button::create('В начало', Server::START_COMMAND)->toArray(),
+                    Button::create('В начало 🔙', Server::START_COMMAND)->toArray(),
                 ],
             ]
         ]);
     }
 
-    public static function getInlineKeyboardForNextSeries(): string
+    public static function getInlineKeyboardForNextSeries(int $number): string
     {
+        $arrows = [
+            [
+                Button::create('Вперед ⏩', Server::GET_NEXT)->toArray(),
+            ],
+            [
+                Button::create('⏪ Назад', Server::GET_PREV)->toArray(),
+                Button::create('Вперед ⏩', Server::GET_NEXT)->toArray(),
+            ],
+        ];
+        
         return json_encode([
             'inline_keyboard' => [
-                [
-                    Button::create('Смотреть следующую серию⏩', Server::GET_NEXT)->toArray(),
-                ],
+                $number > 1 ? $arrows[1] : $arrows[0],
                 [
                     Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
                 ],
                 [
-                    Button::create('В начало', Server::START_COMMAND)->toArray(),
+                    Button::create('В начало 🔙', Server::START_COMMAND)->toArray(),
                 ],
             ]
         ]);
@@ -103,7 +111,7 @@ final class ButtonService {
                     Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
                 ],
                 [
-                    Button::create('В начало', Server::START_COMMAND)->toArray(),
+                    Button::create('В начало 🔙', Server::START_COMMAND)->toArray(),
                 ],
             ]
         ]);
@@ -114,7 +122,7 @@ final class ButtonService {
         return json_encode([
                 'inline_keyboard' => [
                     [
-                        Button::create('В начало', Server::START_COMMAND)->toArray(),
+                        Button::create('В начало 🔙', Server::START_COMMAND)->toArray(),
                     ],
                     [
                         Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
@@ -128,7 +136,7 @@ final class ButtonService {
         return json_encode([
                 'inline_keyboard' => [
                     [
-                        Button::create('В начало', Server::START_COMMAND)->toArray(),
+                        Button::create('В начало 🔙', Server::START_COMMAND)->toArray(),
                     ],
                     [
                         Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),

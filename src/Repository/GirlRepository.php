@@ -24,6 +24,7 @@ class GirlRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('g')
             ->andWhere('g.id >= (:id)')
             ->setParameter('id', $id, ParameterType::INTEGER)
+            ->orderBy('g.id', 'asc')
             ->setMaxResults($limit)
             ->getQuery()
             ->execute();

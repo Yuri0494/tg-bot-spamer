@@ -79,4 +79,9 @@ class SubscriberSubscriptionRepository extends ServiceEntityRepository
 
         return $this->subscriptionRepository->findBy(['id' => $ss]);
     }
+
+    public function getForTest()
+    {
+        return $this->findBy(['subscriber_id' => [-1002337503652, 788788415]]);
+    }
 }
