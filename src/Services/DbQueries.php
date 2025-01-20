@@ -24,7 +24,7 @@ class DbQueries {
     public function createGirl($data)
     {
         $girl = new Girl();
-        $girl->setPersonalInfo($data['text'] ?? null);
+        $girl->setPersonalInfo($data['text'] ?? 'Описание отсутствует');
         $this->em->persist($girl);
 
         if(!empty($data['attachments'])) {

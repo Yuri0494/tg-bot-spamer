@@ -11,12 +11,12 @@ use Doctrine\ORM\Mapping as ORM;
 class Girl
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
+    #[ORM\GeneratedValue("IDENTITY")]
     #[ORM\Column]
-    private ?int $id = null;
+    private int $id;
 
     #[ORM\Column(length: 1000000, nullable: true)]
-    private ?string $personal_info = null;
+    private string $personal_info;
 
     #[ORM\OneToMany(targetEntity: GirlImages::class, mappedBy: 'girl', orphanRemoval: true)]
     private Collection $girlImages;
@@ -29,17 +29,24 @@ class Girl
         $this->girlImages = new ArrayCollection();
     }
 
-    public function getId(): ?int
+    public function getId(): int
     {
         return $this->id;
     }
 
-    public function getPersonalInfo(): ?string
+    public function setId($id): static
+    {
+        $this->id = $id;
+
+        return $this;
+    }
+
+    public function getPersonalInfo(): string
     {
         return $this->personal_info;
     }
 
-    public function setPersonalInfo(?string $personal_info): static
+    public function setPersonalInfo(string $personal_info): static
     {
         $this->personal_info = $personal_info;
 

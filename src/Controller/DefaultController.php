@@ -18,8 +18,7 @@ class DefaultController extends AbstractController
     ): Response
     {
         // $vkApi = new VkApi((new GuzzleHttpAdapter('https://api.vk.com/')));
-        // $resp = $vkApi->get(['code' => 'var responses = [], i = 0; while (i < 10) {  responses = responses + API.wall.get({     "owner_id": "beautifulgirltop", "offset": 2052 + i * 100, "count": 100}).items;   i = i + 1; } return responses;']);
-
+        // $resp = $vkApi->get(['code' => 'var responses = [], i = 0; while (i < 1) {  responses = responses + API.wall.get({     "owner_id": "beautifulgirltop", "offset": 1900 + i * 100, "count": 100}).items;   i = i + 1; } return responses;']);
         // foreach($resp['response'] ?? [] as $girl) {
         //     $db->createGirl($girl);
         // }

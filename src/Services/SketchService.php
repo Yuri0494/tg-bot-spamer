@@ -45,6 +45,11 @@ class SketchService {
         return $sketches;
     }
 
+    public function getSeriesCountOfSketch($sketchName)
+    {
+        return $this->sr->count(['sketch_name' => $sketchName]);
+    }
+
     public function setAllSketchesNonWatched(): void
     {
         $this->em->beginTransaction();

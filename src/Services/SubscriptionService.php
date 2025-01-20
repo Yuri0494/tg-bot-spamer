@@ -87,7 +87,7 @@ class SubscriptionService {
 
     public function sendContentToSubscribers()
     {
-        $allSubscriberSubscription = $this->ssRepository->findBy(['subscriber_id' => [SubscriptionService::TEST_CHAT_ID, 788788415]]);
+        $allSubscriberSubscription = $this->ssRepository->findAll();
 
         if (empty($allSubscriberSubscription)) {
             return;
@@ -119,6 +119,14 @@ class SubscriptionService {
     public function sendSubscription(Subscription $subscription, SubscriberSubscription $ss, $needSleep = false)
     {
         $number = $ss->getLastWatchedSeries() + 1;
+        $category = $this->getSubscriptionCategory($subscription);
+
+        if ($category === 'girl') {
+            $this->sendGirlsPoll($ss->getSubscriberId(), $this->girlService->getGirlss($number));
+            $this->ssRepository->save($ss->setLastWatchedSeries($number + 2));
+            return;
+        }
+
         $link = $this->getSubscriptionLink($subscription->getCode(), $number);
 
         if (!$link) {
@@ -126,8 +134,7 @@ class SubscriptionService {
                 $ss->getSubscriberId(), 
                 "Я прислал вам все серии " . $subscription->getName() . "." . PHP_EOL . 'Вы можете попробовать подписаться на что-то еще. Для этого отправьте /start'
             );
-            $this->ssRepository->delete($ss);
-            return;
+            return $this->ssRepository->delete($ss);
         }
 
         $this->ssRepository->save($ss->setLastWatchedSeries($number));
@@ -141,9 +148,14 @@ class SubscriptionService {
 
     public function sendCurrent(Subscription $subscription, SubscriberSubscription $ss, int $number)
     {
+        $category = $this->getSubscriptionCategory($subscription);
+        if ($category === 'girl') {
+            return $this->sendGirlsPoll($ss->getSubscriberId(), $this->girlService->getGirlInfoById($number), 3);
+        }
+
         $link = $this->getSubscriptionLink($subscription->getCode(), $number);
         if (!$link) {
-            $this->bot->api->sendMessage(
+            return $this->bot->api->sendMessage(
                 $ss->getSubscriberId(),
                 "Ой, что-то пошло нет так"
             );
@@ -155,6 +167,15 @@ class SubscriptionService {
     public function sendNext(Subscription $subscription, SubscriberSubscription $ss)
     {
         $number = $ss->getLastWatchedSeries() + 1;
+
+        $category = $this->getSubscriptionCategory($subscription);
+        if ($category === 'girl') {
+            $this->sendGirlsPoll($ss->getSubscriberId(), $this->girlService->getGirlInfoById($number), 1);
+            $this->ssRepository->save($ss->setLastWatchedSeries($number));
+            $this->bot->api->sendMessage($ss->getSubscriberId(), 'Смотрим следующую? ;)', ['reply_markup' => ButtonService::getInlineKeyboardForNextGirls()]);
+            return;
+        }
+
         $link = $this->getSubscriptionLink($subscription->getCode(), $number);
 
         if (!$link) {
@@ -162,8 +183,8 @@ class SubscriptionService {
                 $ss->getSubscriberId(), 
                 "Я прислал вам все серии " . $subscription->getName() . "." . PHP_EOL . 'Вы можете попробовать подписаться на что-то еще. Для этого отправьте /start'
             );
-            $this->ssRepository->delete($ss);
-            return;
+
+            return $this->ssRepository->delete($ss);
         }
 
         $this->ssRepository->save($ss->setLastWatchedSeries($number));
@@ -224,15 +245,20 @@ class SubscriptionService {
 
     public function getSubscriptionCount(Subscription $subscription)
     {
-        $sketchName = str_replace('/', '', $subscription->getCode());
-
-        if (!is_string($sketchName)) {
-            return;
+        $category = $this->getSubscriptionCategory($subscription);
+        
+        switch($category) {
+            case 'video':
+                $subscription = $this->skecthService->getSeriesCountOfSketch(
+                    $this->getSubscriptionNameByCode($subscription->getCode())
+                );
+                break;
+            case 'girl':
+                $subscription = $this->girlService->getCountOfGirls();
+                break;
         }
 
-        $sketches = $this->skecthService->getAllSketchesByName($sketchName);
-
-        return count($sketches);
+        return $subscription;
     }
 
     public function removeSubscriptions(Chat $chat)
@@ -255,7 +281,6 @@ class SubscriptionService {
 
         return false;
     }
-
 
     private function getSubscriptionLink($name, $number)
     {
@@ -327,6 +352,15 @@ class SubscriptionService {
         }
 
         return $preparedData;
+    }
+
+    private function getSubscriptionCategory(Subscription $subscription)
+    {
+        // ХАК! КОСТЫЛЬ! КОШМАР!
+        return match ($subscription->getCode()) {
+            '/girl' => 'girl',
+            default => 'video',
+        };
     }
 
 }

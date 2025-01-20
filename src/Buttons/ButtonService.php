@@ -46,16 +46,16 @@ final class ButtonService {
         return json_encode([
             'inline_keyboard' => [
                 [
-                    Button::create('Смотреть следующую серию', Server::GET_NEXT)->toArray(),
+                    Button::create('Смотреть далее ⏩', Server::GET_NEXT)->toArray(),
                 ],
                 [
-                    Button::create('Ваши подписки', Server::GET_COMMAND)->toArray(),
+                    Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
+                ],
+                [
+                    Button::create('Отписаться ❌', Server::UNSUBSCRIBE)->toArray(),
                 ],
                 [
                     Button::create('В начало', Server::START_COMMAND)->toArray(),
-                ],
-                [
-                    Button::create('Отписаться', Server::UNSUBSCRIBE)->toArray(),
                 ],
             ]
         ]);
@@ -66,7 +66,7 @@ final class ButtonService {
         return json_encode([
             'inline_keyboard' => [
                 [
-                    Button::create('Ваши подписки', Server::GET_COMMAND)->toArray(),
+                    Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
                 ],
                 [
                     Button::create('В начало', Server::START_COMMAND)->toArray(),
@@ -80,10 +80,27 @@ final class ButtonService {
         return json_encode([
             'inline_keyboard' => [
                 [
-                    Button::create('Смотреть следующую серию', Server::GET_NEXT)->toArray(),
+                    Button::create('Смотреть следующую серию⏩', Server::GET_NEXT)->toArray(),
                 ],
                 [
-                    Button::create('Ваши подписки', Server::GET_COMMAND)->toArray(),
+                    Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
+                ],
+                [
+                    Button::create('В начало', Server::START_COMMAND)->toArray(),
+                ],
+            ]
+        ]);
+    }
+
+    public static function getInlineKeyboardForNextGirls(): string
+    {
+        return json_encode([
+            'inline_keyboard' => [
+                [
+                    Button::create('Смотреть следующую девушку 🧞‍♀️', Server::GET_NEXT)->toArray(),
+                ],
+                [
+                    Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
                 ],
                 [
                     Button::create('В начало', Server::START_COMMAND)->toArray(),
@@ -100,7 +117,7 @@ final class ButtonService {
                         Button::create('В начало', Server::START_COMMAND)->toArray(),
                     ],
                     [
-                        Button::create('Ваши подписки', Server::GET_COMMAND)->toArray(),
+                        Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
                     ],
                 ]
             ]);
@@ -114,7 +131,7 @@ final class ButtonService {
                         Button::create('В начало', Server::START_COMMAND)->toArray(),
                     ],
                     [
-                        Button::create('Ваши подписки', Server::GET_COMMAND)->toArray(),
+                        Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
                     ],
                 ]
             ]);

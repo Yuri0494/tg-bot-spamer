@@ -11,16 +11,16 @@ class GirlImages
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    private int $id;
 
     #[ORM\ManyToOne(inversedBy: 'girlImages')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Girl $girl = null;
 
     #[ORM\Column(length: 10000000)]
-    private ?string $link = null;
+    private string $link;
 
-    public function getId(): ?int
+    public function getId(): int
     {
         return $this->id;
     }

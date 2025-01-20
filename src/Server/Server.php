@@ -58,27 +58,28 @@ class Server {
                 $this->handleMyChatMember();
             }
 
-
         } catch (Exception $e) {
             $this->tgBot->api->sendMessage(788788415, $e->getMessage() . PHP_EOL . $e->getTraceAsString());
         }
     }
 
+    // Обработка текстового сообщения
     private function handleMessageRequest()
     {
         $this->user = $this->userRepository->createOrFind($this->request['from']);
         $this->chat = $this->chatRepository->createOrFind($this->request['chat']);
         $commandInMessage = $this->request['text'];
 
+        if ($this->isBlockedChanels()) {
+            return;
+        }
+        
+        // Старт приложения
         if ($commandInMessage === Server::START_COMMAND) {
-
-            if($this->isBlockedChanels()) {
-                return;
-            }
 
             $this->getAvailableSubscriptionsForSubscribe();
         }
-
+        // Роут для получения конкретной серии
         if (
             str_contains($this->user->getLastCommand(), Server::GET_THIS_COMMAND) &&
             is_int((int) $this->request['text'])
@@ -87,6 +88,7 @@ class Server {
         }
     }
 
+    // Обработка коллбэк-сообщения (пользователь нажал на кнопку)
     private function handleCallbackRequest()
     {
         $this->chat = $this->chatRepository->createOrFind($this->request['message']['chat']);
@@ -98,17 +100,16 @@ class Server {
 
         $command = $this->request['data'];
 
+        // Удаляем предыдущее сообщение пользователя
         if (isset($this->request['message']['message_id'])) {
             $this->tgBot->api->sendDeleteMessage($this->chat->getChatId(), $this->request['message']['message_id']);
         }
         
         switch ($command) {
             case Server::START_COMMAND:
-                $this->setLastCommandOfUser('');
                 $this->getAvailableSubscriptionsForSubscribe();
                 break;
             case Server::GET_COMMAND:
-                $this->setLastCommandOfUser('');
                 $this->getSubscriptionsForView();
                 break;
             case Server::GET_NEXT:
@@ -116,7 +117,6 @@ class Server {
                 break;
             // Возможно следует переименовать команду на view
             case str_contains($command, Server::GET_THIS_COMMAND):
-                $this->setLastCommandOfUser($command);
                 $this->getCurrentSubscriptionForView($command);
                 break;
             case Server::UNSUBSCRIBE:
@@ -129,6 +129,7 @@ class Server {
 
     private function getAvailableSubscriptionsForSubscribe()
     {
+        $this->setLastCommandOfUser('');
         $availableSubscriptions = $this->subscriptionService->getAvailableSubscriptions($this->chat);
         $text = 'На что вы хотите подписаться?';
 
@@ -148,18 +149,9 @@ class Server {
         );
     }
 
-    private function subscribeTo($command)
-    {
-        $textAfterSubscribe = $this->subscriptionService->subscribeTo($this->chat, $command);
-        $this->tgBot->api->sendMessage(
-            $this->chat->getChatId(), 
-            $textAfterSubscribe, 
-            ['reply_markup' => ButtonService::getInlineKeyboardAfterSubscribe()]
-        );
-    }
-
     private function getSubscriptionsForView()
     {
+        $this->setLastCommandOfUser('');
         $subscriptions = $this->subscriptionService->getSubscriptionsOfCurrentChat($this->chat);
         $this->tgBot->api->sendMessage(
             $this->chat->getChatId(), 
@@ -171,17 +163,18 @@ class Server {
     private function getCurrentSubscriptionForView($command)
     {
         try {
+            $this->setLastCommandOfUser($command);
             [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->chat, $command);
             $lastSeries = $subscriptionSubscriber->getLastWatchedSeries();
             $count = $this->subscriptionService->getSubscriptionCount($subscription);
 
             $this->tgBot->api->sendMessage(
                 $this->chat->getChatId(),
-                "Всего доступно серий к просмотру: $count"
+                "Всего доступно к просмотру: $count"
                 . PHP_EOL .
-                "Последняя просмотренная серия: $lastSeries"
+                "Последняя просмотренная: $lastSeries"
                 . PHP_EOL .
-                "Для просмотра интересующей вас серии, отправьте ее номер в сообщении",
+                "Для просмотра интересующего вас контента, отправьте его номер в сообщении или нажмите 'смотреть далее'",
                 ['reply_markup' => ButtonService::getInlineKeyboardForView()]
             );
         } catch (Exception $e) {
@@ -201,13 +194,12 @@ class Server {
         $count = $this->subscriptionService->getSubscriptionCount($subscription);
 
         if ($command > $count || $command < 1) {
-            $this->tgBot->api->sendMessage(
+            return $this->tgBot->api->sendMessage(
                 $this->chat->getChatId(),
                 "Попробуйте ввести другое число" . PHP_EOL .
-                "Напоминаем, что всего доступно серий к просмотру: $count",
+                "Напоминаем, что всего доступно к просмотру: $count",
                 ['reply_markup' => ButtonService::getInlineKeyboardForView()]
             );
-            return;
         }
         $this->subscriptionService->sendCurrent($subscription, $subscriptionSubscriber, $command);
     }
@@ -230,6 +222,16 @@ class Server {
                 ['reply_markup' => ButtonService::getInlineKeyboardAfterUnsubscribe()]
             );
         }
+    }
+
+    private function subscribeTo($command)
+    {
+        $textAfterSubscribe = $this->subscriptionService->subscribeTo($this->chat, $command);
+        $this->tgBot->api->sendMessage(
+            $this->chat->getChatId(), 
+            $textAfterSubscribe, 
+            ['reply_markup' => ButtonService::getInlineKeyboardAfterSubscribe()]
+        );
     }
 
     private function getTypeOfRequest(array $request): string

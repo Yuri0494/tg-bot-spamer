@@ -5,6 +5,7 @@ namespace App\Services;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Repository\GirlRepository;
 use App\Repository\GirlImagesRepository;
+use ContentSeriviceInterface;
 use Exception;
 
 class GirlService {
@@ -57,9 +58,55 @@ class GirlService {
         return $girlsInfo;
     }
 
+    public function getCountOfGirls()
+    {
+        return $this->gr->count();
+    }
+
     public function getGirlInfoById(int $id, bool $withSetIsWatched = false): array
     {
         $girls = $this->gr->findBy(['id' => $id]);
+        $girlsInfo = [];
+
+        foreach($girls as $i => $girl) {
+            $pesonalInfo = $girl->getPersonalInfo();
+            $links = [];
+
+            foreach($girl->getGirlImages() as $image) {
+                $link = $image->getLink();
+
+                if (!$link) {
+                    continue;
+                }
+
+                $links[] = $image->getLink();
+            }
+
+            if (count($links) < 1) {
+                continue;
+            }
+
+            $girlsInfo[$i] = [
+                'personal_info' => $pesonalInfo ?? '',
+                'img_links' => $links, 
+            ];
+
+            if ($withSetIsWatched) {
+                $girl->setIsWatched(true);
+                $this->em->persist($girl);
+            }
+        }
+
+        if (!empty($result) && $withSetIsWatched) {
+            $this->em->flush();
+        }
+
+        return $girlsInfo;
+    }
+
+    public function getGirlss(int $id, bool $withSetIsWatched = false): array
+    {
+        $girls = $this->gr->getSomeGirlsFromId($id);
         $girlsInfo = [];
 
         foreach($girls as $i => $girl) {
