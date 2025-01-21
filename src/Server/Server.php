@@ -38,13 +38,13 @@ class Server {
                     return;
                 case 'message' && array_key_exists('text', $this->req->getRequestData()):
                     $this->handleMessageRequest();
-                    break;
+                    return;
                 case 'callback_query':
                     $this->handleCallbackRequest();
-                    break;
+                    return;
                 case 'my_chat_member':
                     $this->handleMyChatMember();
-                    break;
+                    return;
             }
         } catch (Exception $e) {
             $this->tgBot->api->sendMessage(788788415, $e->getMessage() . PHP_EOL . $e->getTraceAsString());

@@ -36,7 +36,7 @@ class SubscriptionService {
 
     public function sendContentToSubscribers()
     {
-        $allSubscriberSubscription = $this->ssRepository->findAll();
+        $allSubscriberSubscription = $this->ssRepository->getForTest();
 
         if (empty($allSubscriberSubscription)) {
             return;
@@ -59,13 +59,10 @@ class SubscriptionService {
         $quantity = $category === 'poll' ? 3 : 1;
         $sleepTime = $category === 'poll' ? 30 : 1;
         $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity, $sleepTime, false);
+        $number = $ss->getLastWatchedSeries() + 1;
     
-        if ($contentService->send($ss->getSubscriberId(), $ss->getLastWatchedSeries() + 1)) {
-            $ss->setLastWatchedSeries($ss->getLastWatchedSeries() + $quantity);
-            $this->ssRepository->save($ss);
-        } else {
-            $this->ssRepository->delete($ss);
-        }
+        $sended = $contentService->send($ss->getSubscriberId(), $number);
+        $this->updateFieldOrDeletesSubscription($ss, $sended, $number);
 
         if ($needSleep) {
             sleep(10);
@@ -77,14 +74,10 @@ class SubscriptionService {
         $quantity = 1;
         $category = $this->getSubscriptionCategory($subscription);
         $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity);
-        $current = $ss->getLastWatchedSeries() + 1;
+        $number = $ss->getLastWatchedSeries() + 1;
     
-        if ($contentService->send($ss->getSubscriberId(), $ss->getLastWatchedSeries() + 1)) {
-            $ss->setLastWatchedSeries($current);
-            $this->ssRepository->save($ss);
-        } else {
-            $this->ssRepository->delete($ss);
-        }
+        $sended = $contentService->send($ss->getSubscriberId(), $number);  
+        $this->updateFieldOrDeletesSubscription($ss, $sended, $number);
 
         if ($needSleep) {
             sleep(10);
@@ -100,12 +93,8 @@ class SubscriptionService {
                     ? 1
                     : $ss->getLastWatchedSeries() - $quantity;
     
-        if ($contentService->send($ss->getSubscriberId(), $number)) {
-            $ss->setLastWatchedSeries($number);
-            $this->ssRepository->save($ss);
-        } else {
-            $this->ssRepository->delete($ss);
-        }
+        $sended = $contentService->send($ss->getSubscriberId(), $number);  
+        $this->updateFieldOrDeletesSubscription($ss, $sended, $number);
         sleep(2);
     }
 
@@ -236,4 +225,13 @@ class SubscriptionService {
         };
     }
 
+    private function updateFieldOrDeletesSubscription(SubscriberSubscription $ss, bool $actual, int $lastWatchedSeries)
+    {
+        if (!$actual) {
+            $this->ssRepository->delete($ss);
+        }
+        
+        $ss->setLastWatchedSeries($lastWatchedSeries);
+        $this->ssRepository->save($ss);
+    }
 }

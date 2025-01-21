@@ -21,7 +21,7 @@ class SubscriberSubscription
     private int $subscription_id;
 
     #[ORM\Column]
-    private ?int $last_watched_series = null;
+    private int $last_watched_series;
 
     public function getId(): int
     {
@@ -52,7 +52,7 @@ class SubscriberSubscription
         return $this;
     }
 
-    public function getLastWatchedSeries(): ?int
+    public function getLastWatchedSeries(): int
     {
         return $this->last_watched_series;
     }

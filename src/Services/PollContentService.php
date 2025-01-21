@@ -62,6 +62,7 @@ class PollContentService implements ContentServiceInterface {
 
                 if ($this->count > 1) {
                 } else {
+                    sleep(1);
                     $this->bot->api->sendMessage($chatId, 'Смотрим следующую? ;)', ['reply_markup' => ButtonService::getInlineKeyboardForNextGirls()]);
                 }
 
