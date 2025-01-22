@@ -17,9 +17,7 @@ class Server {
     const GET_NEXT = '/view-next';
     const GET_PREV = '/view-prev';
     const UNSUBSCRIBE = '/unsubscribe';
-
-    private $request;
-    
+  
     public function __construct(
         private ChatRepository $chatRepository,
         private UserRepository $userRepository,
@@ -32,7 +30,6 @@ class Server {
     public function handleRequest()
     {
         try {
-            $this->request = $this->req->getRequestData();
             switch($this->req->type) {
                 case 'not handled':
                     return;
@@ -47,59 +44,67 @@ class Server {
                     return;
             }
         } catch (Exception $e) {
-            $this->tgBot->api->sendMessage(788788415, $e->getMessage() . PHP_EOL . $e->getTraceAsString());
+            throw $e;
         }
     }
 
     // Обработка текстового сообщения
     private function handleMessageRequest()
     {
-        if ($this->req->isBlockedRequest()) {
-            return $this->actionBlock();
-        }
-
-        // Старт приложения
-        if ($this->req->getCommand() === Server::START_COMMAND) {
-            return $this->actionStart();
-        }
-        // Роут для получения конкретной серии
-        if (
-            str_contains($this->req->user->getLastCommand(), Server::GET_THIS_COMMAND) &&
-            is_int((int) $this->req->getCommand())
-        ) {
-            return $this->tryToSendSubscription($this->req->getCommand());
+        try {
+            if ($this->req->isBlockedRequest()) {
+                return $this->actionBlock();
+            }
+    
+            // Старт приложения
+            if ($this->req->getCommand() === Server::START_COMMAND) {
+                return $this->actionStart();
+            }
+            // Роут для получения конкретной серии
+            if (
+                str_contains($this->req->user->getLastCommand(), Server::GET_THIS_COMMAND) &&
+                is_int((int) $this->req->getCommand())
+            ) {
+                return $this->tryToSendSubscription($this->req->getCommand());
+            }
+        } catch(Exception $e) {
+            $this->tgBot->api->sendMessage(788788415, $e->getMessage() . PHP_EOL . $e->getTraceAsString());
         }
     }
 
     // Обработка коллбэк-сообщения (пользователь нажал на кнопку)
     private function handleCallbackRequest()
     {
-        if ($this->req->isBlockedRequest()) {
-            return $this->actionBlock();
-        }
-
-        // Удаляем предыдущее сообщение пользователя
-        if ($this->req->getMessageId()) {
-            $this->tgBot->api->sendDeleteMessage($this->req->chat->getChatId(), $this->req->getMessageId());
-        }
-
-        $command = $this->req->getCommand();
-        
-        switch ($command) {
-            case Server::START_COMMAND:
-                return $this->actionStart();
-            case Server::GET_COMMAND:
-                return $this->actionView();
-            case Server::GET_NEXT:
-                return $this->actionViewNext();
-            case Server::GET_PREV:
-                return $this->actionViewPrev();
-            case str_contains($command, Server::GET_THIS_COMMAND):
-                return $this->actionViewCurrent($command);
-            case Server::UNSUBSCRIBE:
-                return $this->unsubscribe();
-            default:
-                return $this->subscribe($command);
+        try {
+            if ($this->req->isBlockedRequest()) {
+                return $this->actionBlock();
+            }
+    
+            // Удаляем предыдущее сообщение пользователя
+            if ($this->req->getMessageId()) {
+                $this->tgBot->api->sendDeleteMessage($this->req->chat->getChatId(), $this->req->getMessageId());
+            }
+    
+            $command = $this->req->getCommand();
+            
+            switch ($command) {
+                case Server::START_COMMAND:
+                    return $this->actionStart();
+                case Server::GET_COMMAND:
+                    return $this->actionView();
+                case Server::GET_NEXT:
+                    return $this->actionViewNext();
+                case Server::GET_PREV:
+                    return $this->actionViewPrev();
+                case str_contains($command, Server::GET_THIS_COMMAND):
+                    return $this->actionViewCurrent($command);
+                case Server::UNSUBSCRIBE:
+                    return $this->unsubscribe();
+                default:
+                    return $this->subscribe($command);
+            }
+        } catch (Exception $e) {
+            $this->tgBot->api->sendMessage(788788415, $e->getMessage() . PHP_EOL . $e->getTraceAsString());
         }
     }
 
@@ -138,24 +143,20 @@ class Server {
 
     private function actionViewCurrent($command)
     {
-        try {
-            $this->setLastCommandOfUser($command);
-            [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $command);
-            $lastSeries = $subscriptionSubscriber->getLastWatchedSeries();
-            $count = $this->subscriptionService->getSubscriptionCount($subscription);
+        $this->setLastCommandOfUser($command);
+        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $command);
+        $lastSeries = $subscriptionSubscriber->getLastWatchedSeries();
+        $count = $this->subscriptionService->getSubscriptionCount($subscription);
 
-            $this->tgBot->api->sendMessage(
-                $this->req->chat->getChatId(),
-                "Всего доступно к просмотру: $count"
-                . PHP_EOL .
-                "Последняя просмотренная: $lastSeries"
-                . PHP_EOL .
-                "Для просмотра интересующего вас контента, отправьте его номер в сообщении или нажмите 'смотреть далее'",
-                ['reply_markup' => ButtonService::getInlineKeyboardForView()]
-            );
-        } catch (Exception $e) {
-            throw $e;
-        }
+        $this->tgBot->api->sendMessage(
+            $this->req->chat->getChatId(),
+            "Всего доступно к просмотру: $count"
+            . PHP_EOL .
+            "Последняя просмотренная: $lastSeries"
+            . PHP_EOL .
+            "Для просмотра интересующего вас контента, отправьте его номер в сообщении или нажмите 'смотреть далее'",
+            ['reply_markup' => ButtonService::getInlineKeyboardForView()]
+        );
     }
 
     private function actionViewNext()
@@ -213,10 +214,11 @@ class Server {
 
     private function handleMyChatMember()
     {
-        $status = $this->request['new_chat_member']['status'] ?? ''; 
+        $req = $this->req->getRequestData();
+        $status = $req['new_chat_member']['status'] ?? ''; 
 
         if (in_array($status, ['left', 'kicked'])) {
-            $this->req->chat = $this->chatRepository->createOrFind($this->request['chat']);
+            $this->req->chat = $this->chatRepository->createOrFind($req['chat']);
             $this->subscriptionService->removeSubscriptions($this->req->chat);
         }
     }

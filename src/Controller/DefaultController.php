@@ -5,13 +5,26 @@ namespace App\Controller;
 use App\Server\Server;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use App\TelegramBotRequest\TelegramBotRequest;
+use Exception;
 
 class DefaultController extends AbstractController
 {
-    public function index(Server $server): Response
+    public function index(
+        Server $server,
+        TelegramBotRequest $req,
+        ): Response
     {
-        $server->handleRequest();
+        try {
 
-        return new Response();
+            if ($req->type === 'not_handled') {
+                return new Response();
+            }
+            
+            $server->handleRequest();
+        } catch (Exception $e) {
+        } finally {
+            return new Response();
+        }
     }
 }

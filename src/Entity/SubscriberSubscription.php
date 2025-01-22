@@ -57,6 +57,24 @@ class SubscriberSubscription
         return $this->last_watched_series;
     }
 
+    public function getCurrentSeriesForWatching(int $quantity = 1): int
+    {
+        if ($this->last_watched_series < 1) {
+            return 1;
+        }
+
+        return $this->last_watched_series + $quantity;
+    }
+
+    public function getPrevSeriesForWatching(int $quantity = 1): int
+    {
+        if ($this->last_watched_series - $quantity < 1) {
+            return 1;
+        }
+
+        return $this->last_watched_series - $quantity;
+    }
+
     public function setLastWatchedSeries(int $last_watched_series): static
     {
         $this->last_watched_series = $last_watched_series;

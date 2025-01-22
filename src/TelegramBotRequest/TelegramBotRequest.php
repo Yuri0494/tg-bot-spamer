@@ -23,7 +23,12 @@ class TelegramBotRequest {
     {
         $this->request = json_decode(file_get_contents('php://input') ?? [], true);
         $this->type = $this->getTypeOfRequest($this->request);
-        $this->user = $this->userRepository->createOrFind($this->request[$this->type]['from']);
+
+        if ($this->type === 'not_handled') {
+            return;
+        }
+        
+        $this->user = $this->initUser();
         $this->chat = $this->initChat();
     }
 
@@ -51,6 +56,7 @@ class TelegramBotRequest {
         $isMessage = $this->request['message'] ?? false;
         $isCallback = $this->request['callback_query'] ?? false;
         $isMyChatMember = $this->request['my_chat_member'] ?? false;
+        $isPollAnswer = $this->request['poll_answer'] ?? false;
         
         if ($isMessage) {
             return 'message';
@@ -60,16 +66,26 @@ class TelegramBotRequest {
             return 'my_chat_member';
         }
 
-        return 'not handled';
+        return 'not_handled';
     }
 
     private function initChat()
     {
         switch ($this->type) {
-            case 'message';
+            case 'message':
                 return $this->chatRepository->createOrFind($this->request[$this->type]['chat']);
-            case 'callback_query';
-                return $this->chat = $this->chatRepository->createOrFind($this->request[$this->type]['message']['chat']);
+            case 'callback_query':
+                return $this->chatRepository->createOrFind($this->request[$this->type]['message']['chat']);
+        }
+    }
+
+    private function initUser()
+    {
+        switch ($this->type) {
+            case 'message':
+                return $this->userRepository->createOrFind($this->request[$this->type]['from']);
+            case 'callback_query':
+                return $this->userRepository->createOrFind($this->request[$this->type]['from']);
         }
     }
 
