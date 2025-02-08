@@ -7,7 +7,7 @@ use App\Entity\Subscription;
 use App\Buttons\ButtonService;
 use Exception;
 
-class PollContentService implements ContentServiceInterface {
+class GirlContentService implements ContentServiceInterface {
     public Subscription $subscription;
     public int $count;
     public int $sleepTime;
@@ -62,6 +62,7 @@ class PollContentService implements ContentServiceInterface {
 
                 if ($this->count > 1) {
                 } else {
+                    // Если отправляется 1 опрос, то после него требуется выдержать паузу
                     sleep(1);
                     $this->bot->api->sendMessage($chatId, 'Смотрим следующую? ;)', ['reply_markup' => ButtonService::getInlineKeyboardForNextGirls()]);
                 }

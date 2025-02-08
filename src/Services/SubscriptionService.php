@@ -218,7 +218,7 @@ class SubscriptionService {
     {
         // ХАК! КОСТЫЛЬ! КОШМАР!
         return match ($subscription->getCode()) {
-            '/girl' => 'poll',
+            '/girl' => 'girl',
             default => 'video',
         };
     }

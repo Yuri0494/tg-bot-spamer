@@ -16,8 +16,8 @@ class ContentServiceFabric {
         switch($category) {
             case 'video':
                 return VideoContentService::create($this->bot, $this->sketchService);
-            case 'poll':
-                return PollContentService::create($this->bot, $this->girlService);
+            case 'girl':
+                return GirlContentService::create($this->bot, $this->girlService);
         }
     }
 }

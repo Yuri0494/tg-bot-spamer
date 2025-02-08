@@ -51,6 +51,20 @@ class TelegramApi {
         }
     }
 
+    public function sendVideo($chatId, $video = null, $params = []) 
+    {
+        $body = array_merge([
+            'chat_id' => $chatId,
+            'video' => $video,
+        ], $params);
+
+        try {
+            $this->client->sendGetRequest('sendVideo', $body);
+        } catch (Exception $e) {
+            throw $e;
+        }
+    }
+
     public function sendMediaGroup($chatId, $media = []) 
     {
         $body = array_merge([

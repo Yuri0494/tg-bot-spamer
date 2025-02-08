@@ -3,9 +3,9 @@
 namespace App\Controller;
 
 use App\Server\Server;
+use App\TelegramBotRequest\TelegramBotRequest;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use App\TelegramBotRequest\TelegramBotRequest;
 use Exception;
 
 class DefaultController extends AbstractController

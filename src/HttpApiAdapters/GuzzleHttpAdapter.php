@@ -33,4 +33,14 @@ final class GuzzleHttpAdapter implements HttpAdapterInterface {
         ]
         )->getBody();
     }
+
+    public function sendQueryAndGetStatusCode(string $uri, $params = [], $headers = [])
+    {
+        return $this->client->request('HEAD', $uri, 
+        [
+            'query' => $params,
+            'headers' => $headers
+        ],
+        )->getStatusCode();
+    }
 }

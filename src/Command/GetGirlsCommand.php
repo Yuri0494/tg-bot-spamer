@@ -17,7 +17,7 @@ use App\Api\VkApi\VkApi;
     hidden: false,
     aliases: ['app:get-girls']
 )]
-class SendMessagesCommand extends Command
+class GetGirlsCommand extends Command
 {
     public function __construct(
         private SubscriptionService $subService,
