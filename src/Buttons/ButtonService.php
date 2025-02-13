@@ -19,7 +19,7 @@ final class ButtonService {
             $buttons[][] = Button::create($subscription->getName(), $subscription->getCode())->toArray();
         }
 
-        $buttons[][] = Button::create('Ваши подписки', Server::GET_COMMAND)->toArray();
+        $buttons[][] = Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray();
 
         return json_encode([
                 'inline_keyboard' => $buttons
@@ -52,10 +52,24 @@ final class ButtonService {
                     Button::create('Ваши подписки 💌', Server::GET_COMMAND)->toArray(),
                 ],
                 [
+                    Button::create('Выбрать серию для просмотра📰', Server::SET_SERIES)->toArray(),
+                ],
+                [
                     Button::create('Отписаться ❌', Server::UNSUBSCRIBE)->toArray(),
                 ],
                 [
                     Button::create('В начало 🔙', Server::START_COMMAND)->toArray(),
+                ],
+            ]
+        ]);
+    }
+
+    public static function getInlineKeyboardForSetCommand(string $prevCommand): string
+    {
+        return json_encode([
+            'inline_keyboard' => [
+                [
+                    Button::create('Назад 🔙', $prevCommand)->toArray(),
                 ],
             ]
         ]);

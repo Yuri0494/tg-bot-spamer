@@ -23,6 +23,7 @@ class DefaultController extends AbstractController
             
             $server->handleRequest();
         } catch (Exception $e) {
+            
         } finally {
             return new Response();
         }

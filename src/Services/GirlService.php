@@ -102,7 +102,7 @@ class GirlService {
         return $girlsInfo;
     }
 
-    public function getGirlss(int $id, int $limit): array
+    public function getSomeGirlsInfoById(int $id, int $limit = 1): array
     {
         $girls = $this->gr->getSomeGirlsFromId($id, $limit);
         $girlsInfo = [];

@@ -23,6 +23,9 @@ class SubscriberSubscription
     #[ORM\Column]
     private int $last_watched_series;
 
+    #[ORM\Column(type: Types::JSON)]
+    private array $parameters = [];
+
     public function getId(): int
     {
         return $this->id;
@@ -48,6 +51,18 @@ class SubscriberSubscription
     public function setSubscriptionId(int $subscription_id): static
     {
         $this->subscription_id = $subscription_id;
+
+        return $this;
+    }
+
+    public function getParameters(): array
+    {
+        return $this->parameters;
+    }
+
+    public function setParameters(array $parameters): static
+    {
+        $this->parameters = $parameters;
 
         return $this;
     }

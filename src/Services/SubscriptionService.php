@@ -16,6 +16,8 @@ use Exception;
 
 class SubscriptionService {
     const TEST_CHAT_ID = -1002337503652;
+    const CATEGORY_VIDEO = 'video';
+    const CATEGORY_GIRLS = 'girl';
 
     public function __construct(
         private SketchService $skecthService,
@@ -45,6 +47,9 @@ class SubscriptionService {
         $toSend = $this->prepareDataForCommonSend($allSubscriberSubscription);
 
         foreach($toSend as $subscriberId => $subscriptions) {
+            if ($subscriberId === 1247872170 || $subscriberId === '-696758173') {
+                continue;
+            }
             $this->sendHello($subscriberId, 'Привет! :)');
             foreach($subscriptions as $ss) {
                 $subscription = $this->subscriptionRepository->findOneBy(['id' => $ss->getSubscriptionId()]);
@@ -55,13 +60,12 @@ class SubscriptionService {
 
     public function sendSubscription(Subscription $subscription, SubscriberSubscription $ss, $needSleep = false)
     {
-        $category = $this->getSubscriptionCategory($subscription);
-        $quantity = $category === 'poll' ? 3 : 1;
-        $sleepTime = $category === 'poll' ? 30 : 1;
-        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity, $sleepTime, false);
+        $quantity = $subscription->getCategory() === 'girl' ? 3 : 1;
+        $sleepTime = $subscription->getCategory() === 'girl' ? 30 : 1;
+        $contentService = $this->serviceFabric->getContentService($subscription->getCategory())->setParameters($subscription, $quantity, $sleepTime);
         $number = $ss->getCurrentSeriesForWatching();
     
-        $sended = $contentService->send($ss->getSubscriberId(), $number);
+        $sended = $contentService->send($ss->getSubscriberId(), $number, false);
         $this->updateFieldOrDeletesSubscription($ss, $sended, $ss->getCurrentSeriesForWatching() + ($quantity - 1));
 
         if ($needSleep) {
@@ -72,8 +76,7 @@ class SubscriptionService {
     public function sendNext(Subscription $subscription, SubscriberSubscription $ss, $needSleep = false)
     {
         $quantity = 1;
-        $category = $this->getSubscriptionCategory($subscription);
-        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity);
+        $contentService = $this->serviceFabric->getContentService($subscription->getCategory())->setParameters($subscription, $quantity);
         $number = $ss->getCurrentSeriesForWatching($quantity);
     
         $sended = $contentService->send($ss->getSubscriberId(), $number);  
@@ -87,8 +90,7 @@ class SubscriptionService {
     public function sendPrevSubscription(Subscription $subscription, SubscriberSubscription $ss)
     {
         $quantity = 1;
-        $category = $this->getSubscriptionCategory($subscription);
-        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity);
+        $contentService = $this->serviceFabric->getContentService($subscription->getCategory())->setParameters($subscription, $quantity);
         $number = $ss->getPrevSeriesForWatching();
     
         $sended = $contentService->send($ss->getSubscriberId(), $number);  
@@ -99,8 +101,7 @@ class SubscriptionService {
     public function sendCurrent(Subscription $subscription, SubscriberSubscription $ss, int $number)
     {
         $quantity = 1;
-        $category = $this->getSubscriptionCategory($subscription);
-        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription, $quantity);
+        $contentService = $this->serviceFabric->getContentService($subscription->getCategory())->setParameters($subscription, $quantity);
         $contentService->send($ss->getSubscriberId(), $number);
     }
 
@@ -157,7 +158,13 @@ class SubscriptionService {
 
         $this->ssRepository->saveNewRecord($subscriber, $subscription);
 
-        return 'Отлично! Подписка добавлена.' . PHP_EOL . $subscription->getName() . " будет отправляться вам каждое утро в районе 07:00";
+        return 'Отлично! Подписка добавлена.' . 
+        PHP_EOL . 
+        $subscription->getName() . 
+        " будет отправляться вам каждое утро в районе 07:00" . 
+        PHP_EOL . 
+        "Также в разделе 'Ваши подписки' вы можете управлять подпиской или посмотреть что-либо прямо сейчас."
+        ;
     }
 
     public function getListOfSubscriptions(Chat $chat): array
@@ -169,10 +176,19 @@ class SubscriptionService {
 
     public function getSubscriptionCount(Subscription $subscription)
     {
-        $category = $this->getSubscriptionCategory($subscription);
-        $contentService = $this->serviceFabric->getContentService($category)->setParameters($subscription);
+        $contentService = $this->serviceFabric->getContentService($subscription->getCategory())->setParameters($subscription);
 
         return $contentService->getCount();
+    }
+
+    public function setLastWatchedSeries(SubscriberSubscription $ss, int $series)
+    {
+        try {
+            $this->ssRepository->save($ss->setLastWatchedSeries($series));
+            return true;
+        } catch(Exception $e) {
+            throw $e;
+        }
     }
 
     public function removeSubscriptions(Chat $chat)
@@ -198,7 +214,7 @@ class SubscriptionService {
 
     public function publishSketches($array, $sketchName, $code) 
     {
-        $this->subscriptionRepository->create($sketchName, '/' . $code);
+        // $this->subscriptionRepository->create($sketchName, '/' . $code, self::CATEGORY_VIDEO);
         $this->skecthService->publishSketchesToDb($array, $code);
     }
 
@@ -212,15 +228,6 @@ class SubscriptionService {
         }
 
         return $preparedData;
-    }
-
-    private function getSubscriptionCategory(Subscription $subscription)
-    {
-        // ХАК! КОСТЫЛЬ! КОШМАР!
-        return match ($subscription->getCode()) {
-            '/girl' => 'girl',
-            default => 'video',
-        };
     }
 
     private function updateFieldOrDeletesSubscription(SubscriberSubscription $ss, bool $actual, int $lastWatchedSeries)

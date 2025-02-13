@@ -16,6 +16,9 @@ class Subscription
     #[ORM\Column(length: 255)]
     private string $name;
 
+    #[ORM\Column(length: 255)]
+    private string $category;
+
     #[ORM\Column(length: 255, unique: true)]
     private string $code;
 
@@ -32,6 +35,18 @@ class Subscription
     public function setName(string $name): static
     {
         $this->name = $name;
+
+        return $this;
+    }
+
+    public function getCategory(): string
+    {
+        return $this->category;
+    }
+
+    public function setCategory(string $category): static
+    {
+        $this->category = $category;
 
         return $this;
     }
@@ -53,11 +68,12 @@ class Subscription
         return str_replace('/', '', $this->code);
     }
 
-    public static function create(string $name, string $code)
+    public static function create(string $name, string $code, string $category)
     {
         $subscription = new Subscription();
         $subscription->setName($name);
         $subscription->setCode($code);
+        $subscription->setCategory($category);
 
         return $subscription;
     }

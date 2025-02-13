@@ -11,7 +11,6 @@ class GirlContentService implements ContentServiceInterface {
     public Subscription $subscription;
     public int $count;
     public int $sleepTime;
-    public bool $buttons;
 
     private function __construct(
         private TelegramBot $bot,
@@ -25,7 +24,7 @@ class GirlContentService implements ContentServiceInterface {
         return $service;
     }
     // Не нравится! :(
-    public function setParameters(Subscription $subscription, int $count = 1, $sleepTime = 2, $buttons = true): self
+    public function setParameters(Subscription $subscription, int $count = 1, $sleepTime = 2): self
     {
         $this->subscription = $subscription;
         $this->count = $count;
@@ -34,13 +33,13 @@ class GirlContentService implements ContentServiceInterface {
         return $this;
     }
     
-    public function send($chatId, $number): bool
+    public function send($chatId, $number, $buttonsAfterSend = true): bool
     {
         try {
-            $girls = $this->girlService->getGirlss($number, $this->count);
+            $girls = $this->girlService->getSomeGirlsInfoById($number, $this->count);
 
             if (empty($girls)) {
-                $this->bot->api->sendMessage($chatId, "К сожалению данных не найдено");
+                $this->bot->api->sendMessage($chatId, "К сожалению, данных не найдено");
                 return false;
             }
 
@@ -60,11 +59,14 @@ class GirlContentService implements ContentServiceInterface {
                 $this->bot->api->sendMediaGroup($chatId, json_encode($mediaGroup));
                 $this->bot->api->sendPoll($chatId, 'Как вам девочка?', $this->getStandartPoll());
 
-                if ($this->count > 1) {
-                } else {
-                    // Если отправляется 1 опрос, то после него требуется выдержать паузу
-                    sleep(1);
-                    $this->bot->api->sendMessage($chatId, 'Смотрим следующую? ;)', ['reply_markup' => ButtonService::getInlineKeyboardForNextGirls()]);
+                if ($buttonsAfterSend) {
+                    $this->bot->api->sendMessage(
+                        $chatId, 
+                        'Смотрим следующую? ;)',
+                        $buttonsAfterSend 
+                            ? ['reply_markup' => ButtonService::getInlineKeyboardForNextGirls()]
+                            : []
+                    );
                 }
 
                 sleep($this->sleepTime);

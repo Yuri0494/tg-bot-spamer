@@ -33,9 +33,9 @@ class SubscriptionRepository extends ServiceEntityRepository
         return $result;
     }
 
-    public function create(string $name, string $code)
+    public function create(string $name, string $code, string $category)
     {
-        $subscription = Subscription::create($name, $code);
+        $subscription = Subscription::create($name, $code, $category);
         $this->save($subscription);
     }
 

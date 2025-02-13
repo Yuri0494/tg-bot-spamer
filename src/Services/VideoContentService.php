@@ -9,7 +9,6 @@ use Exception;
 
 class VideoContentService implements ContentServiceInterface {
     private Subscription $subscription;
-    private bool $buttons;
 
     private function __construct(
         private TelegramBot $bot,
@@ -23,10 +22,9 @@ class VideoContentService implements ContentServiceInterface {
         return $service;
     }
 
-    public function setParameters(Subscription $subscription, int $count = 1, $sleepTime = 2, $buttons = true): self
+    public function setParameters(Subscription $subscription, int $count = 1, $sleepTime = 2): self
     {
         $this->subscription = $subscription;
-        $this->buttons = $buttons;
 
         return $this;
     }
@@ -36,21 +34,27 @@ class VideoContentService implements ContentServiceInterface {
         return $this->sketchService->getSeriesCountOfSketch($this->subscription->getCodeWithoutSlash());
     }
     
-    public function send($chatId, $number): bool
+    public function send($chatId, $number, $buttonsAfterSend = true): bool
     {
         try {
             $link = $this->sketchService->getSketchLink($this->subscription->getCodeWithoutSlash(), $number);
-
+            $name = $this->subscription->getName();
             if (!$link) {
                 $this->bot->api->sendMessage(
                     $chatId, 
-                    "Я прислал вам все серии " . $this->subscription->getName() . "." . PHP_EOL . 'Вы можете попробовать подписаться на что-то еще. Для этого отправьте /start'
+                    "Я прислал вам все серии " . $name . "." . PHP_EOL . 'Вы можете попробовать подписаться на что-то еще. Для этого отправьте /start'
                 );
 
                 return false;
             }
 
-            $this->bot->api->sendMessage($chatId, $link, $this->buttons ? ['reply_markup' => ButtonService::getInlineKeyboardForNextSeries($number)] : []);
+            $this->bot->api->sendMessage(
+                $chatId, 
+                "$name. Серия: $number" . PHP_EOL . $link, 
+                $buttonsAfterSend 
+                    ? ['reply_markup' => ButtonService::getInlineKeyboardForNextSeries($number),] 
+                    : []
+                );
 
             return true;
         } catch (Exception $e) {

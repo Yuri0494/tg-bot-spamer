@@ -96,18 +96,21 @@ class SketchService {
 
     public function publishSketchesToDb(array $sketches, $sketch_name): void
     {
-        $counter = 1;
-        foreach($sketches as $link) {
-            $sketch = new Sketches();
-            $sketch->setSketchName($sketch_name);
-            $sketch->setSeriesNumber($counter);
-            $sketch->setLink($link);
-            $sketch->setIsWatched(false);
-
-            $this->em->persist($sketch);
-            $this->em->flush();
-
-            $counter++;
+        $counter = 65;
+        foreach($sketches as $season => $links) {
+            foreach($links as $link) {
+                $sketch = new Sketches();
+                $sketch->setSketchName($sketch_name);
+                $sketch->setSeriesNumber($counter);
+                $sketch->setLink($link);
+                $sketch->setIsWatched(false);
+                $sketch->setSeason($season);
+        
+                $this->em->persist($sketch);
+                $this->em->flush();
+        
+                $counter++;
+            }
         }
     }
 }

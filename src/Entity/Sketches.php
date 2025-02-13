@@ -25,6 +25,9 @@ class Sketches
     #[ORM\Column(length: 255)]
     private string $link;
 
+    #[ORM\Column(length: 255)]
+    private ?int $season;
+
     public function getId(): int
     {
         return $this->id;
@@ -74,6 +77,18 @@ class Sketches
     public function setLink(string $link): static
     {
         $this->link = $link;
+
+        return $this;
+    }
+
+    public function getSeason(): ?int
+    {
+        return $this->season;
+    }
+
+    public function setSeason(int $season): static
+    {
+        $this->season = $season;
 
         return $this;
     }

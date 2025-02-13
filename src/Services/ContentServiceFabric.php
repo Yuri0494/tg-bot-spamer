@@ -13,7 +13,7 @@ class ContentServiceFabric {
 
     public function getContentService($category): ContentServiceInterface
     {
-        switch($category) {
+        switch ($category) {
             case 'video':
                 return VideoContentService::create($this->bot, $this->sketchService);
             case 'girl':

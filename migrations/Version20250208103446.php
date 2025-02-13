@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20250117114243 extends AbstractMigration
+final class Version20250208103446 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -19,11 +19,11 @@ final class Version20250117114243 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE "user" ADD last_command VARCHAR(255) DEFAULT NULL');
+        $this->addSql('ALTER TABLE subscription ADD category VARCHAR(255)');
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE "user" DROP last_command');
+        $this->addSql('ALTER TABLE subscription DROP category');
     }
 }

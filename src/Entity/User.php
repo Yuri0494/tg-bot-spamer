@@ -27,7 +27,10 @@ class User
     private ?string $user_name = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $last_command = null;
+    private ?string $current_command = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $prev_command = null;
 
     public function getId(): int
     {
@@ -70,14 +73,26 @@ class User
         return $this;
     }
 
-    public function getLastCommand(): ?string
+    public function getCurrentCommand(): ?string
     {
-        return $this->last_command;
+        return $this->current_command;
     }
 
-    public function setLastCommand(string $last_command): static
+    public function setCurrentCommand(string $current_command): static
     {
-        $this->last_command = $last_command;
+        $this->current_command = $current_command;
+
+        return $this;
+    }
+
+    public function getPrevCommand(): ?string
+    {
+        return $this->prev_command;
+    }
+
+    public function setPrevCommand(string $prev_command): static
+    {
+        $this->prev_command = $prev_command;
 
         return $this;
     }
@@ -101,7 +116,8 @@ class User
         $user->tg_id = $tg_id;
         $user->user_name = $user_name;
         $user->last_name = $last_name;
-        $user->last_command = null;
+        $user->current_command = null;
+        $user->prev_command = null;
 
         return $user;
     }

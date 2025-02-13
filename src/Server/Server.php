@@ -13,9 +13,10 @@ use App\TelegramBotRequest\TelegramBotRequest;
 class Server {
     const START_COMMAND = '/start';
     const GET_COMMAND = '/view';
-    const GET_THIS_COMMAND = '/view-';
+    const GET_THIS_COMMAND = '/view-'; // Подписка и ее настройки
     const GET_NEXT = '/view-next';
     const GET_PREV = '/view-prev';
+    const SET_SERIES = '/set-series';
     const UNSUBSCRIBE = '/unsubscribe';
   
     public function __construct(
@@ -30,6 +31,7 @@ class Server {
     public function handleRequest()
     {
         try {
+            // $this->tgBot->api->sendMessage('-696758173', 'Спасиба, Денисс Леонидович');
             switch($this->req->type) {
                 case 'not handled':
                     return;
@@ -62,10 +64,17 @@ class Server {
             }
             // Роут для получения конкретной серии
             if (
-                str_contains($this->req->user->getLastCommand(), Server::GET_THIS_COMMAND) &&
+                str_contains($this->req->user->getCurrentCommand(), Server::GET_THIS_COMMAND) &&
                 is_int((int) $this->req->getCommand())
             ) {
                 return $this->tryToSendSubscription($this->req->getCommand());
+            }
+            // Роут для получения конкретной серии
+            if (
+                str_contains($this->req->user->getCurrentCommand(), Server::SET_SERIES) &&
+                is_int((int) $this->req->getCommand())
+            ) {
+                return $this->tryToSetSeries();
             }
         } catch(Exception $e) {
             $this->tgBot->api->sendMessage(788788415, $e->getMessage() . PHP_EOL . $e->getTraceAsString());
@@ -96,6 +105,8 @@ class Server {
                     return $this->actionViewNext();
                 case Server::GET_PREV:
                     return $this->actionViewPrev();
+                case Server::SET_SERIES:
+                    return $this->actionSetSeries();
                 case str_contains($command, Server::GET_THIS_COMMAND):
                     return $this->actionViewCurrent($command);
                 case Server::UNSUBSCRIBE:
@@ -110,7 +121,7 @@ class Server {
 
     private function actionStart()
     {
-        $this->setLastCommandOfUser('');
+        $this->setCurrentCommandOfUser('');
         $availableSubscriptions = $this->subscriptionService->getAvailableSubscriptions($this->req->chat);
         $text = 'На что вы хотите подписаться?';
 
@@ -132,7 +143,7 @@ class Server {
 
     private function actionView()
     {
-        $this->setLastCommandOfUser('');
+        $this->setCurrentCommandOfUser('');
         $subscriptions = $this->subscriptionService->getSubscriptionsOfCurrentChat($this->req->chat);
         $this->tgBot->api->sendMessage(
             $this->req->chat->getChatId(), 
@@ -143,44 +154,94 @@ class Server {
 
     private function actionViewCurrent($command)
     {
-        $this->setLastCommandOfUser($command);
+        $this->setCurrentCommandOfUser($command);
         [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $command);
-        $lastSeries = $subscriptionSubscriber->getLastWatchedSeries();
         $count = $this->subscriptionService->getSubscriptionCount($subscription);
+        $currentSeries = $subscriptionSubscriber->getCurrentSeriesForWatching();
+
+        if ($count < $currentSeries) {
+            $currentSeries = $currentSeries . " (кажется, вы уже все посмотрели)";
+        }
 
         $this->tgBot->api->sendMessage(
             $this->req->chat->getChatId(),
-            "Всего доступно к просмотру: $count"
+            "Всего доступно: $count"
             . PHP_EOL .
-            "Последняя просмотренная: $lastSeries"
+            "Текущая: $currentSeries"
             . PHP_EOL .
             "Для просмотра интересующего вас контента, отправьте его номер в сообщении или нажмите 'смотреть далее'",
             ['reply_markup' => ButtonService::getInlineKeyboardForView()]
         );
     }
 
+    private function actionSetSeries()
+    {
+        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getCurrentCommand());
+        $count = $this->subscriptionService->getSubscriptionCount($subscription);
+        $this->setPrevCommandOfUser($this->req->user->getCurrentCommand());
+        $this->setCurrentCommandOfUser($this->req->getCommand());
+
+        $this->tgBot->api->sendMessage(
+            $this->req->chat->getChatId(),
+            "Всего доступно к просмотру: $count"
+            . PHP_EOL .
+            "Откуда хотите продолжить просмотр?",
+            ['reply_markup' => ButtonService::getInlineKeyboardForSetCommand($this->req->user->getPrevCommand())]
+        );
+    }
+
     private function actionViewNext()
     {
-        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getLastCommand());
+        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getCurrentCommand());
         $this->subscriptionService->sendNext($subscription, $subscriptionSubscriber);
     }
 
     private function actionViewPrev()
     {
-        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getLastCommand());
+        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getCurrentCommand());
         $this->subscriptionService->sendPrevSubscription($subscription, $subscriptionSubscriber);
     }
 
     private function tryToSendSubscription($command)
     {
-        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getLastCommand());
+        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getCurrentCommand());
         $this->subscriptionService->sendCurrent($subscription, $subscriptionSubscriber, $command);
+    }
+
+    private function tryToSetSeries()
+    {
+        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getPrevCommand());
+        $count = $this->subscriptionService->getSubscriptionCount($subscription);
+        $series = (int) $this->req->getCommand();
+
+        if ($series > $count || $series <= 0) {
+            $this->tgBot->api->sendMessage(
+                $this->req->chat->getChatId(),
+                "Введенные вами данные некорректны. Напоминаю, к просмотру доступно: $count",
+                ['reply_markup' => ButtonService::getInlineKeyboardForSetCommand($this->req->user->getPrevCommand())]
+            );
+            return;
+        }
+
+        if ($this->subscriptionService->setLastWatchedSeries($subscriptionSubscriber, $series - 1)) {
+            $this->tgBot->api->sendMessage(
+                $this->req->chat->getChatId(),
+                "Ок! Теперь просмотр будет продолжен с указанной серии",
+                ['reply_markup' => ButtonService::getInlineKeyboardForSetCommand($this->req->user->getPrevCommand())]
+            );
+        } else {
+            $this->tgBot->api->sendMessage(
+                $this->req->chat->getChatId(),
+                "К сожалению, что-то пошло не так. Попробуйте отправить номер серии еще раз.",
+                ['reply_markup' => ButtonService::getInlineKeyboardForSetCommand($this->req->user->getPrevCommand())]
+            );
+        }
     }
 
     private function unsubscribe()
     {
-        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getLastCommand());
-        $this->setLastCommandOfUser('');
+        [$subscription, $subscriptionSubscriber] = $this->subscriptionService->getCurrentSubscription($this->req->chat, $this->req->user->getCurrentCommand());
+        $this->setCurrentCommandOfUser('');
 
         if ($this->subscriptionService->removeSubscription($this->req->chat, $subscription)) {
             $this->tgBot->api->sendMessage(
@@ -214,18 +275,29 @@ class Server {
 
     private function handleMyChatMember()
     {
-        $req = $this->req->getRequestData();
-        $status = $req['new_chat_member']['status'] ?? ''; 
-
-        if (in_array($status, ['left', 'kicked'])) {
-            $this->req->chat = $this->chatRepository->createOrFind($req['chat']);
-            $this->subscriptionService->removeSubscriptions($this->req->chat);
+        try {
+            $req = $this->req->getRequestData();
+            $status = $req['new_chat_member']['status'] ?? ''; 
+    
+            if (in_array($status, ['left', 'kicked'])) {
+                $this->req->chat = $this->chatRepository->createOrFind($req['chat']);
+                $this->subscriptionService->removeSubscriptions($this->req->chat);
+            }
+        } catch (Exception $e) {
+            throw $e;
         }
     }
 
-    private function setLastCommandOfUser($command)
+    private function setCurrentCommandOfUser($command)
     {
-        $this->req->user->setLastCommand($command);
+        $this->req->user->setCurrentCommand($command);
         $this->userRepository->save($this->req->user);
     }
+
+    private function setPrevCommandOfUser($command)
+    {
+        $this->req->user->setPrevCommand($command);
+        $this->userRepository->save($this->req->user);
+    }
+
 }
