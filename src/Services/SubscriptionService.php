@@ -28,12 +28,12 @@ class SubscriptionService {
         private EntityManagerInterface $em,
         private ContentServiceFabric $serviceFabric,
         private LoggerInterface $logger,
-        private TelegramBot $bot,
+        private TelegramBot $tgBot,
     ) {}
     
     public function sendHello($id, $message)
     {
-        $this->bot->api->sendMessage($id, $message);
+        $this->tgBot->api->sendMessage($id, $message);
     }
 
     public function sendContentToSubscribers()
@@ -47,13 +47,14 @@ class SubscriptionService {
         $toSend = $this->prepareDataForCommonSend($allSubscriberSubscription);
 
         foreach($toSend as $subscriberId => $subscriptions) {
-            if ($subscriberId === 1247872170 || $subscriberId === '-696758173') {
-                continue;
-            }
-            $this->sendHello($subscriberId, 'Привет! :)');
-            foreach($subscriptions as $ss) {
-                $subscription = $this->subscriptionRepository->findOneBy(['id' => $ss->getSubscriptionId()]);
-                $this->sendSubscription($subscription, $ss, true);
+            try {
+                $this->sendHello($subscriberId, 'Привет! :)');
+                foreach($subscriptions as $ss) {
+                    $subscription = $this->subscriptionRepository->findOneBy(['id' => $ss->getSubscriptionId()]);
+                    $this->sendSubscription($subscription, $ss, true);
+                }
+            } catch (Exception $e) {
+                $this->tgBot->api->logError($e);
             }
         }
     }
@@ -66,7 +67,7 @@ class SubscriptionService {
         $number = $ss->getCurrentSeriesForWatching();
     
         $sended = $contentService->send($ss->getSubscriberId(), $number, false);
-        $this->updateFieldOrDeletesSubscription($ss, $sended, $ss->getCurrentSeriesForWatching() + ($quantity - 1));
+        $this->updateFieldOrDeleteSubscription($ss, $sended, $ss->getCurrentSeriesForWatching() + ($quantity - 1));
 
         if ($needSleep) {
             sleep(10);
@@ -80,7 +81,7 @@ class SubscriptionService {
         $number = $ss->getCurrentSeriesForWatching($quantity);
     
         $sended = $contentService->send($ss->getSubscriberId(), $number);  
-        $this->updateFieldOrDeletesSubscription($ss, $sended, $number);
+        $this->updateFieldOrDeleteSubscription($ss, $sended, $number);
 
         if ($needSleep) {
             sleep(10);
@@ -94,7 +95,7 @@ class SubscriptionService {
         $number = $ss->getPrevSeriesForWatching();
     
         $sended = $contentService->send($ss->getSubscriberId(), $number);  
-        $this->updateFieldOrDeletesSubscription($ss, $sended, $number);
+        $this->updateFieldOrDeleteSubscription($ss, $sended, $number);
         sleep(2);
     }
 
@@ -107,22 +108,26 @@ class SubscriptionService {
 
     public function getAvailableSubscriptions(Chat $chat)
     {
-        $subscriber = $this->subscriberRepository->findOrCreateSubscriber($chat->getChatId());
-        $allSubscriptions = $this->subscriptionRepository->findAll();
-        $alredySubscribed = $this->ssRepository->getSubscriptionIdsOfSubscriber($subscriber->getSubscriberId());
-        $availableSubscriptions = [];
-
-        if (!empty($alredySubscribed)) {
-            foreach($allSubscriptions as $subscription) {
-                if(!in_array($subscription->getId(), $alredySubscribed)) {
-                    $availableSubscriptions[] = $subscription;
+        try {
+            $subscriber = $this->subscriberRepository->findOrCreateSubscriber($chat->getChatId());
+            $allSubscriptions = $this->subscriptionRepository->findAll();
+            $alredySubscribed = $this->ssRepository->getSubscriptionIdsOfSubscriber($subscriber->getSubscriberId());
+            $availableSubscriptions = [];
+    
+            if (!empty($alredySubscribed)) {
+                foreach($allSubscriptions as $subscription) {
+                    if(!in_array($subscription->getId(), $alredySubscribed)) {
+                        $availableSubscriptions[] = $subscription;
+                    }
                 }
+    
+                return $availableSubscriptions;
             }
-
-            return $availableSubscriptions;
+    
+            return $allSubscriptions;   
+        } catch(\Throwable $e) {
+            throw $e;
         }
-
-        return $allSubscriptions;
     }
 
     public function getCurrentSubscription(Chat $chat, $code): array|null
@@ -214,7 +219,7 @@ class SubscriptionService {
 
     public function publishSketches($array, $sketchName, $code) 
     {
-        // $this->subscriptionRepository->create($sketchName, '/' . $code, self::CATEGORY_VIDEO);
+        $this->subscriptionRepository->create($sketchName, '/' . $code, self::CATEGORY_VIDEO);
         $this->skecthService->publishSketchesToDb($array, $code);
     }
 
@@ -230,7 +235,7 @@ class SubscriptionService {
         return $preparedData;
     }
 
-    private function updateFieldOrDeletesSubscription(SubscriberSubscription $ss, bool $actual, int $lastWatchedSeries)
+    private function updateFieldOrDeleteSubscription(SubscriberSubscription $ss, bool $actual, int $lastWatchedSeries)
     {
         if (!$actual) {
            return $this->ssRepository->delete($ss);

@@ -4,13 +4,16 @@ namespace App\Api\TelegramApi;
 
 use Exception;
 use App\HttpApiAdapters\HttpAdapterInterface;
+use Error;
 
 class TelegramApi {
     private HttpAdapterInterface $client;
+    private int|string $defaultIdForLog;
 
-    public function __construct(HttpAdapterInterface $client)
+    public function __construct(HttpAdapterInterface $client, int|string $defaultIdForLog)
     {
         $this->client = $client;
+        $this->defaultIdForLog = $defaultIdForLog;
     }
 
     public function getMe()
@@ -122,4 +125,16 @@ class TelegramApi {
         }
     }
 
+    public function logError(mixed $error, $chatId = null) 
+    {
+        if (!$chatId) {
+            $chatId = $this->defaultIdForLog;
+        }
+
+        try {
+            $this->sendMessage($chatId, $error->getMessage() . PHP_EOL . $error->getTraceAsString());
+        } catch (Exception $e) {
+            throw $e;
+        }
+    }
 }

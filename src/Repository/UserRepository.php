@@ -52,6 +52,19 @@ class UserRepository extends ServiceEntityRepository
         return $user;
     }
 
+
+    public function setCurrentCommand(User $user, $command)
+    {
+        $user->setCurrentCommand($command);
+        $this->save($user);
+    }
+
+    public function setPrevCommand(User $user, $command)
+    {
+        $user->setPrevCommand($command);
+        $this->save($user);
+    }
+
     public function save(User $user): void
     {
         $em = $this->getEntityManager();

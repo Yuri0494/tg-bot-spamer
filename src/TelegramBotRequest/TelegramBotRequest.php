@@ -10,11 +10,11 @@ use Exception;
 
 class TelegramBotRequest {
     public string $type;
-    private $request;
     public User $user;
     public Chat $chat;
     public string $command;
     public $messageId;
+    private $request;
 
     public function __construct(
         private ChatRepository $chatRepository,
@@ -76,6 +76,8 @@ class TelegramBotRequest {
                 return $this->chatRepository->createOrFind($this->request[$this->type]['chat']);
             case 'callback_query':
                 return $this->chatRepository->createOrFind($this->request[$this->type]['message']['chat']);
+            case 'my_chat_member':
+                return $this->chatRepository->createOrFind($this->request[$this->type]['chat']);
         }
     }
 
@@ -85,6 +87,8 @@ class TelegramBotRequest {
             case 'message':
                 return $this->userRepository->createOrFind($this->request[$this->type]['from']);
             case 'callback_query':
+                return $this->userRepository->createOrFind($this->request[$this->type]['from']);
+            case 'my_chat_member':
                 return $this->userRepository->createOrFind($this->request[$this->type]['from']);
         }
     }

@@ -29,6 +29,7 @@ services:
     App\Api\TelegramApi\TelegramApi:
         arguments:
             $client: '@App\HttpApiAdapters\GuzzleHttpAdapter'
+            $defaultIdForLog: 788788415
     App\TelegramBot\TelegramBot:
         arguments:
             $clientApi: '@App\Api\TelegramApi\TelegramApi'

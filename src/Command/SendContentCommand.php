@@ -7,6 +7,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use App\Services\SubscriptionService;
+use App\TelegramBot\TelegramBot;
 use Exception;
 
 #[AsCommand(
@@ -19,6 +20,7 @@ class SendContentCommand extends Command
 {
     public function __construct(
         private SubscriptionService $subService,
+        private TelegramBot $tgBot
     )
     {
         parent::__construct();
