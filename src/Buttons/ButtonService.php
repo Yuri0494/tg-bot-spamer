@@ -2,7 +2,6 @@
 
 namespace App\Buttons;
 
-use App\Entity\Subscription;
 use App\Server\Server;
 
 final class ButtonService {

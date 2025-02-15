@@ -2,12 +2,12 @@
 
 namespace App\Server;
 
+use App\TelegramBotRequest\TelegramBotRequest;
+use App\Services\SubscriptionService;
 use App\TelegramBot\TelegramBot;
+use App\Buttons\ButtonService;
 use App\Repository\UserRepository;
 use App\Repository\ChatRepository;
-use App\Buttons\ButtonService;
-use App\Services\SubscriptionService;
-use App\TelegramBotRequest\TelegramBotRequest;
 
 class Server {
     const START_COMMAND = '/start';

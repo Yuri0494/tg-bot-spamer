@@ -9,9 +9,9 @@ use App\Repository\ChatRepository;
 use Exception;
 
 class TelegramBotRequest {
-    public string $type;
     public User $user;
     public Chat $chat;
+    public string $type;
     public string $command;
     public $messageId;
     private $request;
@@ -51,7 +51,19 @@ class TelegramBotRequest {
         return $this->request[$this->type]['message']['message_id'];
     }
 
-    private function getTypeOfRequest($request): string
+    public function isBlockedRequest(): bool
+    {
+        $chatId = $this->chat->getChatId();
+        $userId = $this->user->getTgId();
+
+        if (in_array($chatId, [-1001993053984, -1002337503652, -696758173, -1002490200919]) && !in_array($userId, [788788415])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function getTypeOfRequest(): string
     {
         $isMessage = $this->request['message'] ?? false;
         $isCallback = $this->request['callback_query'] ?? false;
@@ -69,39 +81,19 @@ class TelegramBotRequest {
         return 'not_handled';
     }
 
-    private function initChat()
-    {
-        switch ($this->type) {
-            case 'message':
-                return $this->chatRepository->createOrFind($this->request[$this->type]['chat']);
-            case 'callback_query':
-                return $this->chatRepository->createOrFind($this->request[$this->type]['message']['chat']);
-            case 'my_chat_member':
-                return $this->chatRepository->createOrFind($this->request[$this->type]['chat']);
-        }
-    }
-
     private function initUser()
     {
-        switch ($this->type) {
-            case 'message':
-                return $this->userRepository->createOrFind($this->request[$this->type]['from']);
-            case 'callback_query':
-                return $this->userRepository->createOrFind($this->request[$this->type]['from']);
-            case 'my_chat_member':
-                return $this->userRepository->createOrFind($this->request[$this->type]['from']);
-        }
+        return match($this->type) {
+            'message' => $this->userRepository->createOrFind($this->request[$this->type]['from']),
+            'callback_query', 'my_chat_member' => $this->userRepository->createOrFind($this->request[$this->type]['from']),
+        };
     }
 
-    public function isBlockedRequest(): bool
+    private function initChat()
     {
-        $chatId = $this->chat->getChatId();
-        $userId = $this->user->getTgId();
-
-        if (in_array($chatId, [-1001993053984, -1002337503652, -696758173, -1002490200919]) && !in_array($userId, [788788415])) {
-            return true;
-        }
-
-        return false;
+        return match($this->type) {
+            'message', 'my_chat_member' => $this->chatRepository->createOrFind($this->request[$this->type]['chat']),
+            'callback_query' => $this->chatRepository->createOrFind($this->request[$this->type]['message']['chat']),
+        };
     }
 }

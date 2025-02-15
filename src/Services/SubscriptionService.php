@@ -244,4 +244,16 @@ class SubscriptionService {
         $ss->setLastWatchedSeries($lastWatchedSeries);
         $this->ssRepository->save($ss);
     }
+
+    public function getChatsInfo()
+    {
+       $ss = $this->ssRepository->findAll();
+       $info = [];
+
+       foreach($ss as $subscriber) {
+            $info[] = $this->tgBot->api->getChat($subscriber->getSubscriberId());
+       }
+
+       return $info;
+    }
 }

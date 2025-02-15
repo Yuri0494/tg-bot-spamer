@@ -25,11 +25,11 @@ services:
 
     App\HttpApiAdapters\GuzzleHttpAdapter:
         arguments:
-            $base_url: 'https://api.telegram.org/bot6768896921:AAHSiWv6mmLSdd6b7kLVOIy9XXKltN8KIlg/t'
+            $base_url: '%env(BOT_TOKEN)%'
     App\Api\TelegramApi\TelegramApi:
         arguments:
             $client: '@App\HttpApiAdapters\GuzzleHttpAdapter'
-            $defaultIdForLog: 788788415
+            $chatIdForLogByDefault: '%env(CHAT_ID_FOR_LOG)%'
     App\TelegramBot\TelegramBot:
         arguments:
             $clientApi: '@App\Api\TelegramApi\TelegramApi'

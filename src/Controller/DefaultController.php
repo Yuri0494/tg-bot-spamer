@@ -7,7 +7,6 @@ use App\TelegramBot\TelegramBot;
 use App\TelegramBotRequest\TelegramBotRequest;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Exception;
 
 class DefaultController extends AbstractController
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Api\WheatherApiAdapters;
+namespace App\Api\WheatherApi;
 
 use Exception;
 use App\HttpApiAdapters\HttpAdapterInterface;

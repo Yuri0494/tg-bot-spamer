@@ -2,7 +2,6 @@
 
 namespace App\Api\VkApi;
 
-use Exception;
 use App\HttpApiAdapters\HttpAdapterInterface;
 
 class VkApi {
