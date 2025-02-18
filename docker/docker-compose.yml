@@ -3,8 +3,6 @@ version: '3.8'
 services:
   nginx:
     image: nginx:1.21
-    ports:
-      - 8888:8888
     volumes:
       - ../:/app
       - ./nginx/conf.d:/etc/nginx/conf.d
@@ -23,26 +21,14 @@ services:
   postgres:
     image: postgres:14.8-alpine3.18
     environment:
-      POSTGRES_DB: "tg-bot-db"
-      POSTGRES_USER: "admin"
+      POSTGRES_DB: "db"
+      POSTGRES_USER: "bot"
       POSTGRES_PASSWORD: "1111"
       PGDATA: "/var/lib/postgresql/data/pgdata"
     volumes:
-      - ../2. Init Database:/docker-entrypoint-initdb.d
       - tg-bot-db:/var/lib/postgresql/data
     ports:
       - "5555:5555"
 
-  pgadmin:
-    image: dpage/pgadmin4:7.2
-    environment:
-      PGADMIN_DEFAULT_EMAIL: "bagayev.y@divan.ru"
-      PGADMIN_DEFAULT_PASSWORD: "1111"
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
-    ports:
-      - "5050:80"
-
 volumes:
   tg-bot-db:
-  pgadmin-data:
