@@ -56,7 +56,7 @@ class TelegramBotRequest {
         $chatId = $this->chat->getChatId();
         $userId = $this->user->getTgId();
 
-        if (in_array($chatId, [-1001993053984, -1002337503652, -696758173, -1002490200919]) && !in_array($userId, [788788415])) {
+        if (in_array($chatId, [-1001993053984, -1002337503652, -696758173, -1002490200919, -1002352154103]) && !in_array($userId, [788788415])) {
             return true;
         }
 
