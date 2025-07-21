@@ -21,7 +21,9 @@ class TelegramBotRequest {
         private UserRepository $userRepository,
     )
     {
-        $this->request = json_decode(file_get_contents('php://input') ?? [], true);
+        $this->request = json_decode(!file_get_contents('php://input') ? 
+                                        [] : 
+                                        file_get_contents('php://input') . '}', true);
         $this->type = $this->getTypeOfRequest($this->request);
 
         if ($this->type === 'not_handled') {

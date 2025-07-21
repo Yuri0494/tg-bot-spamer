@@ -20,7 +20,7 @@ class TelegramApi {
         try {
             return json_decode($this->client->sendGetRequest('getMe'), true);
         } catch (Exception $e) {
-            return [];
+            throw $e;
         }
     }
 

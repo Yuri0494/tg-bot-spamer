@@ -25,7 +25,7 @@ services:
 
     App\HttpApiAdapters\GuzzleHttpAdapter:
         arguments:
-            $base_url: '%env(BOT_TOKEN)%'
+            $base_url: '%env(BOT_URL)%'
     App\Api\TelegramApi\TelegramApi:
         arguments:
             $client: '@App\HttpApiAdapters\GuzzleHttpAdapter'

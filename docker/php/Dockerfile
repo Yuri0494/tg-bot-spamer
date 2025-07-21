@@ -21,6 +21,6 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 ARG HOST_UID
 ARG USR_NAME
 ## Команда для добавления пользователя
-RUN adduser --disabled-password --uid 1001 user
+RUN adduser --disabled-password --uid 1000 user
 USER user
 # CMD ["composer", "install"]

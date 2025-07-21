@@ -6,5 +6,5 @@ require __DIR__ . '/vendor/autoload.php';
 use App\Server\Server;
 
 header('Content-Type: application/json');
-$server = new Server(); 
-echo $server->handleRequest();
+// $server = new Server(); 
+// echo $server->handleRequest();
